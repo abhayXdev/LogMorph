@@ -1,0 +1,63 @@
+# ========================
+# LogMorph .gitignore
+# ========================
+
+# --- Agent Planning (private, never committed) ---
+.agent/
+
+# --- Secrets & Environment ---
+.env
+.env.local
+.env.production
+*.pem
+*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+*.whl
+
+# --- Virtual Environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Testing & Coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Node / Frontend ---
+node_modules/
+frontend/dist/
+frontend/build/
+
+# --- Storage & Data Outputs ---
+storage/
+*.parquet
+
+# --- Project Documents (not source code) ---
+*.pdf
