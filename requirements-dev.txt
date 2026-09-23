@@ -1,0 +1,13 @@
+# LogMorph — Development & Testing Dependencies
+
+-r requirements.txt
+
+# Testing
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+
+# Linting & Formatting
+ruff>=0.4.0
+
+# Type Checking
+mypy>=1.10.0

@@ -1,0 +1,34 @@
+# LogMorph — Core Runtime Dependencies
+
+# Web Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+
+# Validation & Configuration
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+
+# Database (NeonDB / PostgreSQL)
+sqlmodel>=0.0.19
+asyncpg>=0.29.0
+
+# Authentication
+passlib[bcrypt]>=1.7.4
+pyjwt>=2.8.0
+
+# Message Queue & Cache (Redis Streams / Upstash)
+redis>=5.0.0
+
+# Log Parsing
+python-dateutil>=2.9.0
+drain3>=0.9.11
+
+# AI Fallback (NVIDIA NIM — OpenAI-compatible SDK)
+openai>=1.30.0
+
+# HTTP Client
+httpx>=0.27.0
+
+# Storage (Parquet)
+pyarrow>=16.0.0
