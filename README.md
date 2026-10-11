@@ -18,7 +18,8 @@
 | :--- | :--- |
 | Backend | Python 3.11+, FastAPI, AsyncIO |
 | Database | NeonDB (Serverless PostgreSQL), SQLModel |
-| Message Queue | Redis Streams (Upstash) |
+| Message Streaming | Apache Kafka (Serverless / aiokafka) |
+| Cache & Deduplication | Redis (Upstash) |
 | Authentication | JWT (PyJWT), API Key Auth |
 | Log Parsing | Regex, Drain3, NVIDIA NIM API |
 | Frontend | React, TypeScript, Tailwind CSS, Vite |

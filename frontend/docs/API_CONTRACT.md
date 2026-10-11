@@ -737,6 +737,7 @@ No authentication required.
   "status": "healthy",
   "version": "0.1.0",
   "database": "connected",
+  "kafka": "connected",
   "redis": "connected",
   "uptime_seconds": 84321
 }
