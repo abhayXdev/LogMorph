@@ -7,14 +7,19 @@ from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.config import settings
+import logmorph.db.models  # noqa: F401  Ensure models register with SQLModel.metadata
 
 logger = logging.getLogger(__name__)
+
+# NeonDB / PgBouncer compatibility: disable prepared statement cache when using transaction pooler
+connect_args = {"statement_cache_size": 0} if "postgresql" in settings.DATABASE_URL else {}
 
 # Create the async engine
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.ENVIRONMENT == "development",
     future=True,
+    connect_args=connect_args,
 )
 
 # Async session factory

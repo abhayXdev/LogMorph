@@ -40,7 +40,12 @@ class ApiKey(ApiKeyBase, table=True):
     """Database model for an Ingestion API Key."""
     __tablename__ = "api_keys"  # type: ignore
 
-    id: str = Field(primary_key=True, index=True, nullable=False)  # e.g., 'key_abc123'
+    id: str = Field(
+        default_factory=lambda: f"key_{uuid.uuid4().hex[:12]}",
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
     key_hash: str = Field(unique=True, nullable=False)
     key_prefix: str = Field(nullable=False)  # First 12 chars for display
     is_active: bool = Field(default=True, nullable=False)
