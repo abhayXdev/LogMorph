@@ -9,15 +9,17 @@ python-multipart>=0.0.9
 pydantic>=2.7.0
 pydantic-settings>=2.3.0
 
-# Database (NeonDB / PostgreSQL)
+# Database (NeonDB / PostgreSQL & Async SQLite dev)
 sqlmodel>=0.0.19
 asyncpg>=0.29.0
+aiosqlite>=0.20.0
 
 # Authentication
 passlib[bcrypt]>=1.7.4
 pyjwt>=2.8.0
 
-# Message Queue & Cache (Redis Streams / Upstash)
+# Message Streaming (Apache Kafka) & Cache / Deduplication (Redis)
+aiokafka>=0.11.0
 redis>=5.0.0
 
 # Log Parsing
