@@ -13,9 +13,11 @@ pydantic-settings>=2.3.0
 sqlmodel>=0.0.19
 asyncpg>=0.29.0
 aiosqlite>=0.20.0
+greenlet>=3.0.0
 
 # Authentication
 passlib[bcrypt]>=1.7.4
+bcrypt==4.0.1
 pyjwt>=2.8.0
 
 # Message Streaming (Apache Kafka) & Cache / Deduplication (Redis)
