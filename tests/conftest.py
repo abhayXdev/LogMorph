@@ -19,7 +19,7 @@ async def async_db() -> AsyncGenerator[AsyncSession, None]:
         await conn.run_sync(SQLModel.metadata.create_all)
 
     async_session = sessionmaker(
-        bind=engine,
+        bind=engine,  # type: ignore[call-overload]
         class_=AsyncSession,
         expire_on_commit=False,
     )
