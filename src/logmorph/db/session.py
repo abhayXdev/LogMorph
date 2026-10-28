@@ -1,13 +1,13 @@
 import logging
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from logmorph.config import settings
 import logmorph.db.models  # noqa: F401  Ensure models register with SQLModel.metadata
+from logmorph.config import settings
 
 logger = logging.getLogger(__name__)
 

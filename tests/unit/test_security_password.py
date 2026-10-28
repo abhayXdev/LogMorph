@@ -54,4 +54,6 @@ def test_verify_password_invalid_hash_format():
     """Verify that malformed hash strings fail gracefully without crashing."""
     assert verify_password("some_password", "invalid_hash_string") is False
     assert verify_password("some_password", "") is False
-    assert verify_password("", "$2b$12$somevalidlengthmockhashstring1234567890123456789012") is False
+    assert (
+        verify_password("", "$2b$12$somevalidlengthmockhashstring1234567890123456789012") is False
+    )

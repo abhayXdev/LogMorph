@@ -27,7 +27,7 @@ def hash_password(password: str) -> str:
     Returns:
         Hashed password string with salt and algorithm identifier.
     """
-    return _pwd_context.hash(password)
+    return str(_pwd_context.hash(password))
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
