@@ -1,29 +1,10 @@
+"""Unit tests for database models and schema relationships."""
+
 import pytest
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlmodel import SQLModel, select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.db.models import ApiKey, User
-
-
-@pytest.fixture
-async def async_db():
-    """Create an in-memory SQLite database for testing."""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
-    async_session = sessionmaker(
-        bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-
-    async with async_session() as session:
-        yield session
-
-    await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -76,6 +57,4 @@ async def test_create_api_key(async_db: AsyncSession):
     fetched_user = result.first()
 
     assert fetched_user is not None
-    # Depending on async session configuration, relationships might need explicit eager loading.
-    # We will just verify foreign key works.
     assert api_key.user_id == fetched_user.id
