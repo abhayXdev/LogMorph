@@ -9,8 +9,10 @@
 .env
 .env.local
 .env.production
+certs/
 *.pem
 *.key
+*.cert
 
 # --- Python ---
 __pycache__/
@@ -58,6 +60,3 @@ frontend/build/
 # --- Storage & Data Outputs ---
 storage/
 *.parquet
-
-# --- Project Documents (not source code) ---
-*.pdf
