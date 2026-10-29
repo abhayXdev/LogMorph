@@ -9,8 +9,10 @@
 .env
 .env.local
 .env.production
+certs/
 *.pem
 *.key
+*.cert
 
 # --- Python ---
 __pycache__/
