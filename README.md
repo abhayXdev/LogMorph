@@ -18,7 +18,7 @@
 | :--- | :--- |
 | Backend | Python 3.11+, FastAPI, AsyncIO |
 | Database | NeonDB (Serverless PostgreSQL), SQLModel |
-| Message Streaming | Apache Kafka (Redpanda Cloud Serverless / aiokafka) |
+| Message Streaming | Apache Kafka (Aiven Cloud Free Tier / aiokafka) |
 | Cache & Deduplication | Redis (Upstash) |
 | Authentication | JWT (PyJWT), API Key Auth |
 | Log Parsing | Regex, Drain3, NVIDIA NIM API |
