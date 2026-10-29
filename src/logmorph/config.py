@@ -20,13 +20,13 @@ class Settings(BaseSettings):
     NVIDIA_NIM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     LLM_MODEL: str = "meta/llama3-70b-instruct"
 
-    # Apache Kafka Settings (Serverless Upstash or Local)
+    # Apache Kafka Settings (Redpanda Serverless, Managed Kafka, or Local)
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
     KAFKA_TOPIC_RAW_LOGS: str = "raw-logs"
     KAFKA_SASL_USERNAME: str | None = None
     KAFKA_SASL_PASSWORD: str | None = None
-    KAFKA_SECURITY_PROTOCOL: str = "PLAINTEXT"  # Use "SASL_SSL" with Upstash Kafka
-    KAFKA_SASL_MECHANISM: str = "PLAIN"  # Use "SCRAM-SHA-256" with Upstash Kafka
+    KAFKA_SECURITY_PROTOCOL: str = "PLAINTEXT"  # Use "SASL_SSL" with Redpanda Cloud
+    KAFKA_SASL_MECHANISM: str = "PLAIN"  # Use "SCRAM-SHA-256" with Redpanda Cloud
 
     # Redis (Upstash — Deduplication & Caching)
     REDIS_URL: str = "redis://localhost:6379/0"
