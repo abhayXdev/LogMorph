@@ -17,6 +17,7 @@ from logmorph.api.v1.router import api_v1_router
 from logmorph.config import settings
 from logmorph.core.exceptions import APIException
 from logmorph.db.session import get_session, init_db
+from logmorph.queue.producer import LogMorphKafkaProducer, get_kafka_producer, kafka_producer
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Database schemas verified.")
     except Exception as e:
         logger.warning("Database auto-init skipped or encountered error: %s", e)
+
+    # Initialize Apache Kafka producer
+    try:
+        await kafka_producer.start()
+    except Exception as e:
+        logger.warning("Kafka producer startup encountered error: %s", e)
+
     yield
+
     logger.info("Shutting down LogMorph application...")
+    try:
+        await kafka_producer.stop()
+    except Exception as e:
+        logger.warning("Kafka producer stop encountered error: %s", e)
 
 
 app = FastAPI(
@@ -131,6 +144,7 @@ async def request_validation_exception_handler(
 )
 async def health_check(
     session: Annotated[AsyncSession, Depends(get_session)],
+    producer: Annotated[LogMorphKafkaProducer, Depends(get_kafka_producer)],
 ) -> dict[str, Any]:
     """Retrieve runtime health and connected service dependencies."""
     db_status = "connected"
@@ -140,13 +154,23 @@ async def health_check(
         logger.warning("Database health check ping failed: %s", e)
         db_status = "disconnected"
 
+    # Kafka health inspection
+    if producer.is_connected:
+        is_healthy = await producer.is_healthy()
+        kafka_status = "connected" if is_healthy else "degraded"
+    elif producer.fallback_queue is not None:
+        kafka_status = "fallback_buffer"
+    else:
+        kafka_status = "disconnected"
+
     uptime_seconds = int(time.time() - START_TIME)
+    is_healthy = db_status == "connected" and kafka_status in ("connected", "fallback_buffer")
 
     return {
-        "status": "healthy" if db_status == "connected" else "degraded",
+        "status": "healthy" if is_healthy else "degraded",
         "version": "0.1.0",
         "database": db_status,
-        "kafka": "unconfigured",
+        "kafka": kafka_status,
         "redis": "unconfigured",
         "uptime_seconds": uptime_seconds,
     }

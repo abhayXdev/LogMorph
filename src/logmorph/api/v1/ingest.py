@@ -1,12 +1,14 @@
 """Log Ingestion webhook endpoints protected by API Key authentication."""
 
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
 from logmorph.api.deps import get_api_key
 from logmorph.db.models import ApiKey
+from logmorph.queue.producer import LogMorphKafkaProducer, get_kafka_producer
 from logmorph.schemas.errors import ErrorResponse
 from logmorph.schemas.ingest import (
     BatchIngestRequest,
@@ -14,6 +16,7 @@ from logmorph.schemas.ingest import (
     IngestRequest,
     IngestResponse,
 )
+from logmorph.schemas.queue import RawLogMessage
 
 router = APIRouter(prefix="/ingest", tags=["Log Ingestion"])
 
@@ -39,22 +42,25 @@ router = APIRouter(prefix="/ingest", tags=["Log Ingestion"])
     summary="Ingest a single raw log event",
     description=(
         "Accepts a single raw log line, validates the tenant API key, "
-        "generates a unique event tracking ID, and acknowledges acceptance."
+        "generates a unique event tracking ID, dispatches to Kafka queue, and acknowledges acceptance."
     ),
 )
 async def ingest_single_log(
     payload: IngestRequest,
     api_key: Annotated[ApiKey, Depends(get_api_key)],
+    producer: Annotated[LogMorphKafkaProducer, Depends(get_kafka_producer)],
 ) -> IngestResponse:
     """Ingest a single log line."""
     event_id = f"evt_{uuid.uuid4()}"
 
-    # In D2-T2, this is where Kafka producer queueing will be wired:
-    # await kafka_producer.send(
-    #     topic=settings.KAFKA_TOPIC_RAW_LOGS,
-    #     key=str(api_key.user_id).encode(),
-    #     value={"event_id": event_id, "tenant_id": str(api_key.user_id), ...}
-    # )
+    message = RawLogMessage(
+        event_id=event_id,
+        tenant_id=api_key.user_id,
+        raw_log=payload.raw_log,
+        source=payload.source,
+        ingested_at=datetime.now(UTC),
+    )
+    await producer.send_log(message)
 
     return IngestResponse(
         status="accepted",
@@ -83,17 +89,33 @@ async def ingest_single_log(
     summary="Ingest a batch of raw log events",
     description=(
         "Accepts a batch of up to 1000 raw log lines, validates the tenant API key, "
-        "generates unique event tracking IDs, and acknowledges acceptance."
+        "generates unique event tracking IDs, dispatches to Kafka queue, and acknowledges acceptance."
     ),
 )
 async def ingest_batch_logs(
     payload: BatchIngestRequest,
     api_key: Annotated[ApiKey, Depends(get_api_key)],
+    producer: Annotated[LogMorphKafkaProducer, Depends(get_kafka_producer)],
 ) -> BatchIngestResponse:
     """Ingest multiple log lines in a single batch."""
-    event_ids = [f"evt_{uuid.uuid4()}" for _ in payload.logs]
+    now = datetime.now(UTC)
+    event_ids: list[str] = []
+    messages: list[RawLogMessage] = []
 
-    # In D2-T2, batch streaming to Kafka will be dispatched here
+    for raw_log in payload.logs:
+        event_id = f"evt_{uuid.uuid4()}"
+        event_ids.append(event_id)
+        messages.append(
+            RawLogMessage(
+                event_id=event_id,
+                tenant_id=api_key.user_id,
+                raw_log=raw_log,
+                source=payload.source,
+                ingested_at=now,
+            )
+        )
+
+    await producer.send_batch(messages)
 
     return BatchIngestResponse(
         status="accepted",
