@@ -7,6 +7,7 @@ from logmorph.schemas.ingest import (
     IngestRequest,
     IngestResponse,
 )
+from logmorph.schemas.queue import RawLogMessage
 
 __all__ = [
     "BatchIngestRequest",
@@ -14,4 +15,5 @@ __all__ = [
     "ErrorResponse",
     "IngestRequest",
     "IngestResponse",
+    "RawLogMessage",
 ]
