@@ -1,0 +1,4 @@
+{"log":"2026-10-30T03:15:20.123456789Z stdout F [INFO] Server started on port 8080\n","stream":"stdout","time":"2026-10-30T03:15:20.123456789Z"}
+{"eventVersion":"1.08","userIdentity":{"type":"IAMUser","principalId":"AIDA123456789EXAMPLE","arn":"arn:aws:iam::123456789012:user/Alice"},"eventTime":"2026-10-30T03:15:20Z","eventSource":"signin.amazonaws.com","eventName":"ConsoleLogin","awsRegion":"us-east-1","sourceIPAddress":"203.0.113.5","userAgent":"Mozilla/5.0","responseElements":{"ConsoleLogin":"Success"}}
+{"timestamp":"2026-10-30T03:15:20Z","level":"ERROR","service":"payment-gateway","trace_id":"trace_4fa8c2","span_id":"span_99b1","error":"Payment authorization timeout after 5000ms","customer_id":"cust_9123"}
+{"timestamp":"2026-10-30T03:16:00Z","level":"INFO","service":"auth-service","user_id":"usr_4412","action":"LOGIN_SUCCESS","client_ip":"198.51.100.12"}

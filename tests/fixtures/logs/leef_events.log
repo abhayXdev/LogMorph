@@ -1,0 +1,5 @@
+LEEF:1.0|Microsoft|Active Directory|2019|4625|cat=Security	usr=Administrator	src=192.168.1.100	dst=192.168.1.5	msg=An account failed to log on
+LEEF:1.0|Microsoft|MSExchange|2016|15345|cat=Success	src=10.50.1.1	dst=2.10.20.20	spt=1200	usr=jdoe
+LEEF:2.0|Cisco|ASA|9.14|106015|^src=203.0.113.50^dst=198.51.100.25^spt=43210^dpt=22^proto=tcp^cat=Deny
+LEEF:2.0|Trend Micro|Deep Security|20.0|Anti-Malware Event|^src=10.0.0.12^dst=192.168.1.200^cat=Malware^msg=Trojan.Win32.Generic
+<13>1 2026-06-06T05:34:55.000Z SERVER-1 - - - LEEF:2.0|PaloAlto|Firewall|10.1|TRAFFIC|	src=192.168.1.50	dst=10.0.0.5	spt=54321	dpt=443	usr=admin	cat=Allowed

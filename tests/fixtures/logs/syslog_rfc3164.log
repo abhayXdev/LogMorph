@@ -1,0 +1,6 @@
+<34>Oct 11 22:14:15 mymachine su: 'su root' failed for lonvick on /dev/pts/8
+<86>Oct 12 04:02:18 server01 sshd[24123]: Failed password for invalid user admin from 192.168.1.105 port 51234 ssh2
+<86>Oct 12 04:02:22 server01 sshd[24123]: Accepted publickey for ubuntu from 10.0.0.12 port 48123 ssh2: RSA SHA256:abc123def456
+<78>Oct 12 05:00:01 server01 CRON[25100]: (root) CMD (/usr/local/bin/backup-sync.sh > /dev/null 2>&1)
+Oct 12 06:15:30 gateway kernel: [12345.678901] [UFW BLOCK] IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=203.0.113.88 DST=192.168.1.1 PROTO=TCP SPT=55123 DPT=23
+Nov 03 14:22:01 workstation systemd[1]: Started Daily apt upgrade and clean activities.
