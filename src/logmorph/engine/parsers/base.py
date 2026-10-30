@@ -36,6 +36,12 @@ class ParsedResult(BaseModel):
         default=ParsingTierEnum.RULE,
         description="Parsing tier that parsed this record (default: RULE for Tier 1)",
     )
+    confidence: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Parsing confidence score (0.0 to 1.0)",
+    )
     raw_timestamp: str | None = Field(
         default=None,
         description="Extracted candidate raw timestamp string for Day 4 normalization",
