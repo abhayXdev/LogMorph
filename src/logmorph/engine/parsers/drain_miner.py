@@ -34,7 +34,10 @@ logger = logging.getLogger(__name__)
 
 # Heuristic severity patterns for unstructured text
 _SEVERITY_PATTERNS = [
-    (re.compile(r"\b(fatal|critical|emerg|panic|oom-killer)\b", re.IGNORECASE), SeverityEnum.CRITICAL),
+    (
+        re.compile(r"\b(fatal|critical|emerg|emergency|panic|oom-killer)\b", re.IGNORECASE),
+        SeverityEnum.CRITICAL,
+    ),
     (
         re.compile(
             r"\b(error|err|failed|failure|exception|nullpointerexception|timed\s*out|timeout|denied|connectionreseterror)\b",
@@ -70,13 +73,17 @@ class ValidatedIPv6MaskingInstruction(AbstractMaskingInstruction):  # type: igno
     """
 
     def __init__(self, mask_with: str = "IPV6") -> None:
-        self.mask_with = mask_with
+        super().__init__(mask_with)
         self.regex = re.compile(
             r"(?:::1\b|\b(?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}\b)"
         )
 
+    @property
+    def pattern(self) -> str:
+        return self.regex.pattern
+
     def mask(self, content: str, mask_prefix: str, mask_suffix: str) -> str:
-        mask_token = mask_prefix + self.mask_with + mask_suffix
+        mask_token: str = f"{mask_prefix}{self.mask_with}{mask_suffix}"
 
         def _repl(m: re.Match[str]) -> str:
             val = m.group(0)
@@ -180,6 +187,8 @@ class AsyncTenantMinerPool:
                     is_ssl=is_ssl,
                     redis_key=redis_key,
                 )
+                handler.r.connection_pool.connection_kwargs["socket_connect_timeout"] = 0.5
+                handler.r.connection_pool.connection_kwargs["socket_timeout"] = 0.5
                 handler.r.ping()
                 return handler
             except Exception as e:
