@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # LLM Settings
     NVIDIA_NIM_API_KEY: str | None = None
     NVIDIA_NIM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
-    LLM_MODEL: str = "meta/llama3-70b-instruct"
+    LLM_MODEL: str = "nvidia/nemotron-3.5-bolt-e4b"
 
     # Apache Kafka Settings (Aiven Cloud Free Tier, Managed Kafka, or Local)
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
