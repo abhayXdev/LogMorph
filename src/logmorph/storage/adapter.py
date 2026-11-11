@@ -17,6 +17,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.db.models import LogRecord
 from logmorph.domain.uls import UniversalLogEvent
+from logmorph.schemas.events import (
+    EventDestinationInfo,
+    EventDetailResponse,
+    EventEnrichmentInfo,
+    EventItem,
+    EventSearchResultItem,
+    EventSecurityInfo,
+    EventSourceInfo,
+)
 from logmorph.schemas.storage import (
     LogQueryFilter,
     LogRecordRead,
@@ -131,6 +140,111 @@ def record_to_read(record: LogRecord) -> LogRecordRead:
     )
 
 
+def record_to_event_item(record: LogRecord) -> EventItem:
+    """Project relational LogRecord into public EventItem model."""
+    attrs: dict[str, Any] = {}
+    if record.attributes_json:
+        try:
+            attrs = json.loads(record.attributes_json)
+        except Exception:
+            attrs = {}
+
+    src_info = None
+    if (
+        record.source_ip
+        or record.source_port
+        or attrs.get("hostname")
+        or attrs.get("source_hostname")
+    ):
+        src_info = EventSourceInfo(
+            ip=record.source_ip,
+            hostname=attrs.get("hostname") or attrs.get("source_hostname"),
+            port=record.source_port,
+            mac=attrs.get("source_mac") or attrs.get("mac"),
+        )
+
+    dst_info = None
+    if record.destination_ip or record.destination_port:
+        dst_info = EventDestinationInfo(
+            ip=record.destination_ip,
+            port=record.destination_port,
+        )
+
+    sec_info = None
+    if (
+        record.user
+        or record.process_name
+        or record.threat_id
+        or record.mitre_technique
+        or attrs.get("process_id")
+    ):
+        sec_info = EventSecurityInfo(
+            user=record.user,
+            process_name=record.process_name,
+            process_id=attrs.get("process_id"),
+            threat_id=record.threat_id,
+            mitre_technique=record.mitre_technique,
+        )
+
+    enrichment_info = None
+    if (
+        record.enrichment_json
+        or record.threat_matched
+        or record.mitre_technique
+        or record.geoip_country
+    ):
+        enrichment_data: dict[str, Any] = {}
+        if record.enrichment_json:
+            try:
+                enrichment_data = json.loads(record.enrichment_json)
+            except Exception:
+                enrichment_data = {}
+        geoip_data = enrichment_data.get("geoip")
+        if not geoip_data and record.geoip_country:
+            geoip_data = {"country": record.geoip_country}
+
+        enrichment_info = EventEnrichmentInfo(
+            geoip=geoip_data,
+            threat_match=record.threat_matched,
+            mitre_technique=enrichment_data.get("mitre_technique") or record.mitre_technique,
+            mitre_tactic=enrichment_data.get("mitre_tactic") or record.mitre_tactic,
+        )
+
+    return EventItem(
+        event_id=record.event_id,
+        timestamp=record.timestamp,
+        raw_log=record.raw_log,
+        detected_format=record.detected_format,
+        severity=record.severity,
+        source=src_info,
+        destination=dst_info,
+        security=sec_info,
+        action=record.action,
+        parsed_by=record.parsed_by,
+        enrichment=enrichment_info,
+        attributes=attrs,
+    )
+
+
+def record_to_event_detail(record: LogRecord) -> EventDetailResponse:
+    """Project relational LogRecord into full EventDetailResponse model."""
+    item = record_to_event_item(record)
+    return EventDetailResponse(
+        event_id=item.event_id,
+        timestamp=item.timestamp,
+        raw_log=item.raw_log,
+        detected_format=item.detected_format,
+        severity=item.severity,
+        source=item.source,
+        destination=item.destination,
+        security=item.security,
+        action=item.action,
+        parsed_by=item.parsed_by,
+        enrichment=item.enrichment,
+        attributes=item.attributes,
+    )
+
+
 # ==============================================================================
 # 2. PostgreSQL Storage Adapter
 # ==============================================================================
@@ -234,6 +348,163 @@ class PostgresStorageAdapter:
         res = await session.exec(stmt)
         record = res.first()
         return record_to_read(record) if record else None
+
+    async def query_event_items(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+        filter_params: LogQueryFilter | None = None,
+    ) -> tuple[list[EventItem], int]:
+        """Execute multi-vector indexed search returning canonical EventItem objects."""
+        params = filter_params or LogQueryFilter()
+        conditions: list[Any] = [col(LogRecord.tenant_id) == tenant_id]
+
+        if params.start_time:
+            conditions.append(col(LogRecord.timestamp) >= params.start_time)
+        if params.end_time:
+            conditions.append(col(LogRecord.timestamp) <= params.end_time)
+        if params.severity:
+            conditions.append(col(LogRecord.severity) == params.severity.value)
+        if params.detected_format:
+            conditions.append(col(LogRecord.detected_format) == params.detected_format.value)
+        if params.threat_matched is not None:
+            conditions.append(col(LogRecord.threat_matched) == params.threat_matched)
+        if params.mitre_technique:
+            conditions.append(col(LogRecord.mitre_technique) == params.mitre_technique)
+        if params.source_ip:
+            conditions.append(col(LogRecord.source_ip) == params.source_ip)
+        if params.destination_ip:
+            conditions.append(col(LogRecord.destination_ip) == params.destination_ip)
+        if params.search_term:
+            term = f"%{params.search_term}%"
+            conditions.append(
+                or_(
+                    col(LogRecord.raw_log).ilike(term),
+                    col(LogRecord.action).ilike(term),
+                    col(LogRecord.user).ilike(term),
+                )
+            )
+
+        # 1. Total matching count
+        count_stmt = select(func.count()).select_from(LogRecord).where(*conditions)
+        count_res = await session.exec(count_stmt)
+        total_count = int(count_res.one() or 0)
+
+        # 2. Paginated results
+        stmt = (
+            select(LogRecord)
+            .where(*conditions)
+            .order_by(col(LogRecord.timestamp).desc())
+            .offset(params.offset)
+            .limit(params.limit)
+        )
+        records_res = await session.exec(stmt)
+        records = records_res.all()
+
+        items = [record_to_event_item(r) for r in records]
+        return items, total_count
+
+    async def get_event_detail(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+        event_id: str,
+    ) -> EventDetailResponse | None:
+        """Fetch full event detail representation scoped to tenant."""
+        stmt = select(LogRecord).where(
+            col(LogRecord.tenant_id) == tenant_id,
+            col(LogRecord.event_id) == event_id,
+        )
+        res = await session.exec(stmt)
+        record = res.first()
+        return record_to_event_detail(record) if record else None
+
+    async def search_events(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+        query_str: str,
+        limit: int = 20,
+    ) -> tuple[list[EventSearchResultItem], int]:
+        """Execute text search across log fields, computing match relevance score."""
+        clean_q = query_str.strip()
+        if not clean_q:
+            return [], 0
+
+        term = f"%{clean_q}%"
+        conditions: list[Any] = [
+            col(LogRecord.tenant_id) == tenant_id,
+            or_(
+                col(LogRecord.raw_log).ilike(term),
+                col(LogRecord.action).ilike(term),
+                col(LogRecord.user).ilike(term),
+                col(LogRecord.process_name).ilike(term),
+                col(LogRecord.source_ip).ilike(term),
+                col(LogRecord.destination_ip).ilike(term),
+            ),
+        ]
+
+        # Total matching count
+        count_stmt = select(func.count()).select_from(LogRecord).where(*conditions)
+        count_res = await session.exec(count_stmt)
+        total_count = int(count_res.one() or 0)
+
+        stmt = (
+            select(LogRecord)
+            .where(*conditions)
+            .order_by(col(LogRecord.timestamp).desc())
+            .limit(limit)
+        )
+        res = await session.exec(stmt)
+        records = res.all()
+
+        results: list[EventSearchResultItem] = []
+        q_lower = clean_q.lower()
+        for rec in records:
+            raw_lower = rec.raw_log.lower()
+            if q_lower == raw_lower:
+                score = 1.0
+            elif (rec.action and q_lower in rec.action.lower()) or (
+                rec.user and q_lower in rec.user.lower()
+            ):
+                score = 0.95
+            elif q_lower in raw_lower:
+                pos = raw_lower.find(q_lower)
+                score = round(max(0.70, 0.95 - (pos / max(len(raw_lower), 1)) * 0.20), 2)
+            else:
+                score = 0.75
+
+            results.append(
+                EventSearchResultItem(
+                    event_id=rec.event_id,
+                    timestamp=rec.timestamp,
+                    severity=rec.severity,
+                    raw_log=rec.raw_log,
+                    detected_format=rec.detected_format,
+                    score=score,
+                )
+            )
+
+        return results, total_count
+
+    async def delete_log(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+        event_id: str,
+    ) -> bool:
+        """Delete an individual log record strictly bounded by tenant ownership."""
+        stmt = select(LogRecord).where(
+            col(LogRecord.tenant_id) == tenant_id,
+            col(LogRecord.event_id) == event_id,
+        )
+        res = await session.exec(stmt)
+        record = res.first()
+        if not record:
+            return False
+        await session.delete(record)
+        await session.commit()
+        return True
 
     async def get_tenant_stats(
         self,
