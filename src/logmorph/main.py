@@ -164,6 +164,19 @@ async def health_check(
     else:
         kafka_status = "disconnected"
 
+    # Redis health inspection
+    redis_status = "unconfigured"
+    if settings.REDIS_URL:
+        try:
+            import redis.asyncio as aioredis
+            r_client = aioredis.from_url(settings.REDIS_URL, socket_timeout=2)
+            await r_client.ping()
+            await r_client.aclose()
+            redis_status = "connected"
+        except Exception as e:
+            logger.debug("Redis health check ping failed: %s", e)
+            redis_status = "disconnected"
+
     uptime_seconds = int(time.time() - START_TIME)
     is_healthy = db_status == "connected" and kafka_status in ("connected", "fallback_buffer")
 
@@ -172,7 +185,7 @@ async def health_check(
         "version": "0.1.0",
         "database": db_status,
         "kafka": kafka_status,
-        "redis": "unconfigured",
+        "redis": redis_status,
         "uptime_seconds": uptime_seconds,
     }
 
