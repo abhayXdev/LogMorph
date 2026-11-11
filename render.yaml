@@ -1,0 +1,38 @@
+# ==============================================================================
+# Render Infrastructure as Code Blueprint for LogMorph
+# ==============================================================================
+
+services:
+  - type: web
+    name: logmorph-api
+    runtime: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # Set in Render Dashboard with your NeonDB connection string
+      - key: SECRET_KEY
+        generateValue: true
+      - key: REDIS_URL
+        sync: false # Set with your Upstash Redis URL
+      - key: NVIDIA_NIM_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        value: a3fd81001@smtp-brevo.com
+      - key: FRONTEND_URL
+        sync: false

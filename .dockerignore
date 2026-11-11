@@ -1,0 +1,42 @@
+# Git & Planning
+.git
+.gitignore
+.agent/
+.vscode/
+.idea/
+
+# Environment & Secrets (NEVER bake secrets into docker image)
+.env
+.env.*
+!.env.example
+certs/
+*.pem
+*.key
+*.cert
+
+# Python & Virtual Environments
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+dist/
+build/
+*.egg-info/
+
+# Tests & Quality
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Local data & docs
+*.db
+*.sqlite
+Meeting notes.pdf
+*.md
+frontend/
