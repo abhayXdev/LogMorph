@@ -30,6 +30,7 @@ class User(UserBase, table=True):
 
     # Relationships
     api_keys: list["ApiKey"] = Relationship(back_populates="user", cascade_delete=True)
+    logs: list["LogRecord"] = Relationship(back_populates="user_rel", cascade_delete=True)
 
 
 class ApiKeyBase(SQLModel):
@@ -61,3 +62,51 @@ class ApiKey(ApiKeyBase, table=True):
     # Relationships
     user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
     user: User = Relationship(back_populates="api_keys")
+
+
+class LogRecordBase(SQLModel):
+    """Base fields for LogRecord model."""
+
+    event_id: str = Field(index=True, nullable=False)
+    timestamp: datetime = Field(index=True, nullable=False)
+    raw_log: str = Field(nullable=False)
+    detected_format: str = Field(index=True, nullable=False)
+    severity: str = Field(default="INFORMATIONAL", index=True, nullable=False)
+    action: str | None = Field(default=None, index=True, nullable=True)
+    source_ip: str | None = Field(default=None, index=True, nullable=True)
+    source_port: int | None = Field(default=None, nullable=True)
+    destination_ip: str | None = Field(default=None, index=True, nullable=True)
+    destination_port: int | None = Field(default=None, nullable=True)
+    user: str | None = Field(default=None, index=True, nullable=True)
+    process_name: str | None = Field(default=None, index=True, nullable=True)
+    parsed_by: str = Field(default="RULE", nullable=False)
+    is_duplicate: bool = Field(default=False, index=True, nullable=False)
+    threat_matched: bool = Field(default=False, index=True, nullable=False)
+    threat_id: str | None = Field(default=None, index=True, nullable=True)
+    mitre_technique: str | None = Field(default=None, index=True, nullable=True)
+    mitre_tactic: str | None = Field(default=None, index=True, nullable=True)
+    geoip_country: str | None = Field(default=None, index=True, nullable=True)
+    attributes_json: str = Field(default="{}", nullable=False)
+    enrichment_json: str | None = Field(default=None, nullable=True)
+
+
+class LogRecord(LogRecordBase, table=True):
+    """Database model for storing processed UniversalLogEvents in PostgreSQL."""
+
+    __tablename__ = "log_records"  # type: ignore
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    tenant_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    ingested_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        index=True,
+        nullable=False,
+    )
+
+    # Relationships
+    user_rel: User = Relationship(back_populates="logs")
