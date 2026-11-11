@@ -12,6 +12,9 @@
 | :--- | :--- | :--- |
 | `/login` | Login Page | No |
 | `/signup` | Signup Page | No |
+| `/forgot-password` | Forgot Password Page | No |
+| `/reset-password` | Reset Password Page | No |
+| `/verify-email` | Email Verification Page | No |
 | `/dashboard` | Dashboard (Home) | Yes |
 | `/logs` | Log Explorer | Yes |
 | `/logs/:eventId` | Event Detail | Yes |
@@ -21,7 +24,7 @@
 | `/settings` | User Settings | Yes |
 
 > If user is not logged in and visits a protected route, redirect to `/login`.
-> If user is logged in and visits `/login` or `/signup`, redirect to `/dashboard`.
+> If user is logged in and visits `/login`, `/signup`, `/forgot-password`, or `/reset-password`, redirect to `/dashboard`.
 
 ---
 
@@ -34,6 +37,7 @@
 - LogMorph logo at the top.
 - Email input field.
 - Password input field (with show/hide toggle).
+- "Forgot password?" hyperlink below the password field (links to `/forgot-password`).
 - "Log In" button.
 - Link at the bottom: "Don't have an account? Sign up"
 
@@ -43,6 +47,7 @@
 **Behavior:**
 - Show loading spinner on the button while the API call is in progress.
 - Show error message below the form if login fails (e.g., "Invalid email or password").
+- If unverified account message returned, show option to resend verification email.
 
 ---
 
@@ -58,6 +63,7 @@
 - Confirm Password field.
 - "Create Account" button.
 - Link: "Already have an account? Log in"
+- Post-signup informational state: banner showing *"Verification link dispatched to your email. Please check your inbox."*
 
 **API Calls:**
 - `POST /auth/signup` → on success, store JWT token and redirect to `/dashboard`.
@@ -309,12 +315,66 @@ Opens a modal with:
 
 **Layout:**
 - **Profile Section:** Full name (editable), email (read-only), member since date.
-- **Change Password Section:** Current password, new password, confirm new password.
+- **Change Password Section:** Current password, new password, confirm new password, "Update Password" button.
 - **Danger Zone:** "Delete Account" button (with confirmation modal).
 
 **API Calls:**
 - `GET /auth/me`
+- `POST /auth/change-password` → sends `{ current_password, new_password }`. On success, shows toast: "Password updated successfully".
 - Future: `PUT /auth/me`, `DELETE /auth/me`
+
+---
+
+## Page 10: Forgot Password (`/forgot-password`)
+
+**Purpose:** Request a password reset link when the user cannot remember their credentials.
+
+**Layout:**
+- Centered card matching Login style.
+- LogMorph logo and header: "Reset your password".
+- Subtitle: "Enter your registered email address and we'll send you recovery instructions."
+- Email input field.
+- "Send Reset Link" button.
+- Link: "Remembered your password? Back to login"
+
+**API Calls:**
+- `POST /auth/forgot-password` → sends `{ email }`.
+- On success: show confirmation card: *"If an account matches that email, we have dispatched a password reset link. Please check your spam folder if it doesn't arrive within 2 minutes."*
+
+---
+
+## Page 11: Reset Password (`/reset-password`)
+
+**Purpose:** Set a new password using the cryptographic token from the recovery email.
+
+**Route:** `/reset-password?token=<raw_token>`
+
+**Layout:**
+- Centered card matching Login style.
+- Header: "Set New Password".
+- New Password field (with strength indicator).
+- Confirm New Password field.
+- "Reset Password" button.
+
+**API Calls:**
+- `POST /auth/reset-password` → sends `{ token, new_password }`.
+- On success: show success banner and redirect to `/login` after 2 seconds.
+- On error (e.g. 400 Expired token): show warning banner with link to `/forgot-password`.
+
+---
+
+## Page 12: Email Verification (`/verify-email`)
+
+**Purpose:** Confirm email ownership and activate full account privileges.
+
+**Route:** `/verify-email?token=<raw_token>`
+
+**Behavior & Layout:**
+- Reads `token` query param on page mount.
+- Automatically calls `POST /auth/verify-email` with `{ token }`.
+- **Loading State:** Centered card with animated spinner: "Verifying your email address..."
+- **Success State:** Green checkmark icon: *"Email Verified Successfully! Your account is fully active."* Button: "Go to Dashboard" (redirects to `/dashboard` or `/login`).
+- **Failure/Expired State:** Amber alert icon: *"Verification link has expired or is invalid."* Form to enter email with "Resend Verification Email" button (calling `POST /auth/resend-verification`).
 
 ---
 
