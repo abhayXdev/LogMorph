@@ -23,6 +23,13 @@ class User(UserBase, table=True):
         nullable=False,
     )
     hashed_password: str = Field(nullable=False)
+    is_verified: bool = Field(default=False, nullable=False)
+    email_verified_at: datetime | None = Field(default=None, nullable=True)
+    verification_token_hash: str | None = Field(default=None, index=True, nullable=True)
+    verification_token_expires_at: datetime | None = Field(default=None, nullable=True)
+    reset_token_hash: str | None = Field(default=None, index=True, nullable=True)
+    reset_token_expires_at: datetime | None = Field(default=None, nullable=True)
+    token_version: int = Field(default=1, nullable=False)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         nullable=False,
@@ -31,6 +38,7 @@ class User(UserBase, table=True):
     # Relationships
     api_keys: list["ApiKey"] = Relationship(back_populates="user", cascade_delete=True)
     logs: list["LogRecord"] = Relationship(back_populates="user_rel", cascade_delete=True)
+    sources: list["LogSource"] = Relationship(back_populates="user", cascade_delete=True)
 
 
 class ApiKeyBase(SQLModel):
@@ -110,3 +118,35 @@ class LogRecord(LogRecordBase, table=True):
 
     # Relationships
     user_rel: User = Relationship(back_populates="logs")
+
+
+class LogSourceBase(SQLModel):
+    """Base fields for LogSource model."""
+
+    name: str = Field(nullable=False)
+    source_type: str = Field(default="syslog", nullable=False)
+    description: str | None = Field(default=None, nullable=True)
+    status: str = Field(default="active", nullable=False)
+    events_count: int = Field(default=0, nullable=False)
+    last_seen_at: datetime | None = Field(default=None, nullable=True)
+
+
+class LogSource(LogSourceBase, table=True):
+    """Database model for a Log Source collector registry."""
+
+    __tablename__ = "log_sources"  # type: ignore
+
+    id: str = Field(
+        default_factory=lambda: f"src_{uuid.uuid4().hex[:12]}",
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    tenant_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    # Relationships
+    user: User = Relationship(back_populates="sources")

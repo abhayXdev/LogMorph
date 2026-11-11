@@ -1,5 +1,23 @@
 """API schema definitions for LogMorph."""
 
+from logmorph.schemas.auth import (
+    ApiKeyCreatedResponse,
+    ApiKeyCreateRequest,
+    ApiKeyResponse,
+    AuthResponse,
+    ChangePasswordRequest,
+    ChangePasswordResponse,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    ResendVerificationRequest,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
+    UserLoginRequest,
+    UserProfileResponse,
+    UserSignupRequest,
+    VerifyEmailRequest,
+    VerifyEmailResponse,
+)
 from logmorph.schemas.deduplication import (
     DeduplicationBackendEnum,
     DeduplicationConfig,
@@ -54,11 +72,35 @@ from logmorph.schemas.pipeline import (
     QualityPipelineResult,
 )
 from logmorph.schemas.queue import RawLogMessage
+from logmorph.schemas.sandbox import (
+    SandboxParseRequest,
+    SandboxParseResponse,
+)
 from logmorph.schemas.sanitization import (
     CleanedIP,
     FieldCleaningConfig,
     SanitizationMaskType,
     SanitizationReport,
+)
+from logmorph.schemas.sources import (
+    LogSourceCreateRequest,
+    LogSourceDeleteResponse,
+    LogSourceResponse,
+    LogSourcesListResponse,
+)
+from logmorph.schemas.stats import (
+    FormatBreakdownItem,
+    RecentIOCItem,
+    SeverityBreakdownItem,
+    StatsCascadeResponse,
+    StatsFormatsResponse,
+    StatsOverviewResponse,
+    StatsSeverityResponse,
+    StatsThreatsResponse,
+    StatsTimelineResponse,
+    TierUsageItem,
+    TimelineDataPoint,
+    TopTechniqueItem,
 )
 from logmorph.schemas.storage import (
     LogQueryFilter,
@@ -76,8 +118,14 @@ from logmorph.schemas.threat_intel import (
 )
 
 __all__ = [
+    "ApiKeyCreateRequest",
+    "ApiKeyCreatedResponse",
+    "ApiKeyResponse",
+    "AuthResponse",
     "BatchIngestRequest",
     "BatchIngestResponse",
+    "ChangePasswordRequest",
+    "ChangePasswordResponse",
     "CleanedIP",
     "DeduplicationBackendEnum",
     "DeduplicationConfig",
@@ -99,6 +147,9 @@ __all__ = [
     "EventSecurityInfo",
     "EventSourceInfo",
     "FieldCleaningConfig",
+    "FormatBreakdownItem",
+    "ForgotPasswordRequest",
+    "ForgotPasswordResponse",
     "GeoIPConfig",
     "GeoIPLookupResult",
     "GeoIPMetricsSnapshot",
@@ -108,6 +159,10 @@ __all__ = [
     "LogQueryFilter",
     "LogQueryResponse",
     "LogRecordRead",
+    "LogSourceCreateRequest",
+    "LogSourceDeleteResponse",
+    "LogSourceResponse",
+    "LogSourcesListResponse",
     "MitreAttackTag",
     "MitreMetricsSnapshot",
     "MitreRule",
@@ -117,8 +172,21 @@ __all__ = [
     "QualityPipelineConfig",
     "QualityPipelineResult",
     "RawLogMessage",
+    "RecentIOCItem",
+    "ResendVerificationRequest",
+    "ResetPasswordRequest",
+    "ResetPasswordResponse",
+    "SandboxParseRequest",
+    "SandboxParseResponse",
     "SanitizationMaskType",
     "SanitizationReport",
+    "SeverityBreakdownItem",
+    "StatsCascadeResponse",
+    "StatsFormatsResponse",
+    "StatsOverviewResponse",
+    "StatsSeverityResponse",
+    "StatsThreatsResponse",
+    "StatsTimelineResponse",
     "TACTIC_NAME_MAP",
     "TenantLogStats",
     "ThreatCategoryEnum",
@@ -126,6 +194,14 @@ __all__ = [
     "ThreatIntelConfig",
     "ThreatIntelMetricsSnapshot",
     "ThreatIntelResult",
+    "TierUsageItem",
+    "TimelineDataPoint",
     "TimestampFormatEnum",
     "TimestampNormalizationResult",
+    "TopTechniqueItem",
+    "UserLoginRequest",
+    "UserProfileResponse",
+    "UserSignupRequest",
+    "VerifyEmailRequest",
+    "VerifyEmailResponse",
 ]
