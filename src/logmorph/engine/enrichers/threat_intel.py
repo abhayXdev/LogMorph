@@ -173,7 +173,7 @@ class LocalThreatIntelProvider(BaseThreatIntelProvider):
                 description="Standard test string for anti-virus and security telemetry verification.",
             ),
             ThreatIndicator(
-                ioc_value="ed01ef263327fa404832c3f8e81c70732ac34b20",
+                ioc_value="24d004a104d4d54034dbcffc2a4b19a11f39008a575aa614ea04703480b1022c",
                 ioc_type=IOCTypeEnum.SHA256,
                 threat_name="WannaCry Ransomware",
                 category=ThreatCategoryEnum.MALWARE,
