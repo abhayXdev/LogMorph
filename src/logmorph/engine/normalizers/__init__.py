@@ -1,5 +1,15 @@
 """Normalizer components for LogMorph (Timestamps, Fields, Deduplication)."""
 
+from logmorph.engine.normalizers.deduplicator import (
+    DeduplicationMetrics,
+    DeduplicationService,
+    InMemoryDeduplicator,
+    RedisDeduplicator,
+    compute_event_fingerprint,
+    dedup_metrics,
+    deduplicate_parsed_result,
+    default_deduplication_service,
+)
 from logmorph.engine.normalizers.sanitizer import (
     clean_attributes,
     clean_hostname,
@@ -16,14 +26,23 @@ from logmorph.engine.normalizers.timestamp import (
 )
 
 __all__ = [
+    "DeduplicationMetrics",
+    "DeduplicationService",
+    "InMemoryDeduplicator",
+    "RedisDeduplicator",
     "clean_attributes",
     "clean_hostname",
     "clean_ip",
     "clean_mac",
     "clean_text",
+    "compute_event_fingerprint",
+    "dedup_metrics",
+    "deduplicate_parsed_result",
+    "default_deduplication_service",
     "format_iso8601_z",
     "is_luhn_valid",
     "normalize_timestamp",
     "sanitize_parsed_result",
     "scrub_pii",
 ]
+
