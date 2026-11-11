@@ -18,6 +18,10 @@ from logmorph.schemas.normalization import (
     TimestampFormatEnum,
     TimestampNormalizationResult,
 )
+from logmorph.schemas.pipeline import (
+    QualityPipelineConfig,
+    QualityPipelineResult,
+)
 from logmorph.schemas.queue import RawLogMessage
 from logmorph.schemas.sanitization import (
     CleanedIP,
@@ -39,6 +43,8 @@ __all__ = [
     "FieldCleaningConfig",
     "IngestRequest",
     "IngestResponse",
+    "QualityPipelineConfig",
+    "QualityPipelineResult",
     "RawLogMessage",
     "SanitizationMaskType",
     "SanitizationReport",
