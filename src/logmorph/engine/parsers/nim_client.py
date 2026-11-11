@@ -214,8 +214,12 @@ async def close_nim_client() -> None:
     global _client
     async with _client_lock:
         if _client is not None:
-            await _client.close()
-            _client = None
+            try:
+                await _client.close()
+            except (RuntimeError, Exception):
+                pass
+            finally:
+                _client = None
 
 
 def _create_fallback_result(
