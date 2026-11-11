@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from logmorph.api.v1.auth import router as auth_router
 from logmorph.api.v1.router import api_v1_router
 from logmorph.config import settings
 from logmorph.core.exceptions import APIException
@@ -177,4 +178,5 @@ async def health_check(
 
 
 # Mount API Routers
+app.include_router(auth_router)
 app.include_router(api_v1_router)
