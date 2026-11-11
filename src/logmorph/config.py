@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     GEOIP_DB_PATH: str | None = None
     GEOIP_ENABLED: bool = True
 
+    # Threat Intelligence Settings
+    THREAT_INTEL_ENABLED: bool = True
+    THREAT_INTEL_FEED_PATH: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
