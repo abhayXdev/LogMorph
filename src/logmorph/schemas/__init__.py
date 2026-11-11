@@ -13,15 +13,25 @@ from logmorph.schemas.normalization import (
     TimestampNormalizationResult,
 )
 from logmorph.schemas.queue import RawLogMessage
+from logmorph.schemas.sanitization import (
+    CleanedIP,
+    FieldCleaningConfig,
+    SanitizationMaskType,
+    SanitizationReport,
+)
 
 __all__ = [
     "BatchIngestRequest",
     "BatchIngestResponse",
+    "CleanedIP",
     "DetectionResult",
     "ErrorResponse",
+    "FieldCleaningConfig",
     "IngestRequest",
     "IngestResponse",
     "RawLogMessage",
+    "SanitizationMaskType",
+    "SanitizationReport",
     "TimestampFormatEnum",
     "TimestampNormalizationResult",
 ]
