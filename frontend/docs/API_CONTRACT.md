@@ -49,6 +49,7 @@ Create a new user account.
   "id": "usr_a1b2c3d4",
   "email": "alice@example.com",
   "full_name": "Alice Johnson",
+  "is_verified": false,
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6...",
   "token_type": "bearer"
 }
@@ -106,6 +107,7 @@ Get the currently logged-in user's profile.
   "id": "usr_a1b2c3d4",
   "email": "alice@example.com",
   "full_name": "Alice Johnson",
+  "is_verified": true,
   "created_at": "2026-09-20T14:30:00Z"
 }
 ```
@@ -130,6 +132,139 @@ Get a new JWT token using the current (soon-to-expire) token.
   "token_type": "bearer"
 }
 ```
+
+---
+
+### POST `/auth/verify-email`
+
+Verify a user's email address using a one-time cryptographic token from the verification link.
+
+**Request:**
+```json
+{
+  "token": "4f8a9e2d1c3b5a7e9f0d2c4b6a8e0f1d"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "Email verified successfully",
+  "email": "alice@example.com"
+}
+```
+
+**Errors:**
+| Status | Meaning |
+| :--- | :--- |
+| 400 | Invalid or expired verification token |
+| 422 | Validation error |
+
+---
+
+### POST `/auth/resend-verification`
+
+Request a new email verification link if the original expired or was lost.
+
+**Request:**
+```json
+{
+  "email": "alice@example.com"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "If this account is unverified, a new verification email has been sent."
+}
+```
+
+**Errors:**
+| Status | Meaning |
+| :--- | :--- |
+| 429 | Rate limit exceeded (cooldown active) |
+
+---
+
+### POST `/auth/forgot-password`
+
+Request a password reset link. Always returns 200 to prevent account/email enumeration.
+
+**Request:**
+```json
+{
+  "email": "alice@example.com"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "If an account with that email exists, password reset instructions have been sent."
+}
+```
+
+**Errors:**
+| Status | Meaning |
+| :--- | :--- |
+| 429 | Rate limit exceeded (too many requests) |
+
+---
+
+### POST `/auth/reset-password`
+
+Set a new password using a valid, unexpired reset token.
+
+**Request:**
+```json
+{
+  "token": "9b8a7c6d5e4f3a2b1c0d9e8f7a6b5c4d",
+  "new_password": "NewSecureP@ss123"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "Password has been reset successfully. Please log in with your new password."
+}
+```
+
+**Errors:**
+| Status | Meaning |
+| :--- | :--- |
+| 400 | Invalid, used, or expired reset token |
+| 422 | Password complexity validation error |
+
+---
+
+### POST `/auth/change-password`
+
+Update account password for an already logged-in user. Automatically revokes old sessions.
+
+**Headers:** `Authorization: Bearer <jwt_token>`
+
+**Request:**
+```json
+{
+  "current_password": "SecureP@ss123",
+  "new_password": "EvenMoreSecureP@ss2026!"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "Password updated successfully"
+}
+```
+
+**Errors:**
+| Status | Meaning |
+| :--- | :--- |
+| 401 | Current password is incorrect or session expired |
+| 422 | Password complexity validation error |
 
 ---
 
