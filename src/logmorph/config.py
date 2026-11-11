@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     THREAT_INTEL_ENABLED: bool = True
     THREAT_INTEL_FEED_PATH: str | None = None
 
+    # MITRE ATT&CK Settings
+    MITRE_TAGGER_ENABLED: bool = True
+    MITRE_RULES_PATH: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
