@@ -34,6 +34,14 @@ from logmorph.schemas.sanitization import (
     SanitizationMaskType,
     SanitizationReport,
 )
+from logmorph.schemas.threat_intel import (
+    IOCTypeEnum,
+    ThreatCategoryEnum,
+    ThreatIndicator,
+    ThreatIntelConfig,
+    ThreatIntelMetricsSnapshot,
+    ThreatIntelResult,
+)
 
 __all__ = [
     "BatchIngestRequest",
@@ -49,6 +57,7 @@ __all__ = [
     "GeoIPConfig",
     "GeoIPLookupResult",
     "GeoIPMetricsSnapshot",
+    "IOCTypeEnum",
     "IngestRequest",
     "IngestResponse",
     "QualityPipelineConfig",
@@ -56,6 +65,11 @@ __all__ = [
     "RawLogMessage",
     "SanitizationMaskType",
     "SanitizationReport",
+    "ThreatCategoryEnum",
+    "ThreatIndicator",
+    "ThreatIntelConfig",
+    "ThreatIntelMetricsSnapshot",
+    "ThreatIntelResult",
     "TimestampFormatEnum",
     "TimestampNormalizationResult",
 ]
