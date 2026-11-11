@@ -1,5 +1,11 @@
 """API schema definitions for LogMorph."""
 
+from logmorph.schemas.deduplication import (
+    DeduplicationBackendEnum,
+    DeduplicationConfig,
+    DeduplicationMetricsSnapshot,
+    DeduplicationResult,
+)
 from logmorph.schemas.detection import DetectionResult
 from logmorph.schemas.errors import ErrorResponse
 from logmorph.schemas.ingest import (
@@ -24,6 +30,10 @@ __all__ = [
     "BatchIngestRequest",
     "BatchIngestResponse",
     "CleanedIP",
+    "DeduplicationBackendEnum",
+    "DeduplicationConfig",
+    "DeduplicationMetricsSnapshot",
+    "DeduplicationResult",
     "DetectionResult",
     "ErrorResponse",
     "FieldCleaningConfig",
