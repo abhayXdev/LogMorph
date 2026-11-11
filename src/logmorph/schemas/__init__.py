@@ -7,6 +7,11 @@ from logmorph.schemas.deduplication import (
     DeduplicationResult,
 )
 from logmorph.schemas.detection import DetectionResult
+from logmorph.schemas.engine import (
+    EngineConfig,
+    EngineMetricsSnapshot,
+    EngineProcessingResult,
+)
 from logmorph.schemas.enrichment import (
     GeoIPConfig,
     GeoIPLookupResult,
@@ -60,6 +65,9 @@ __all__ = [
     "DeduplicationMetricsSnapshot",
     "DeduplicationResult",
     "DetectionResult",
+    "EngineConfig",
+    "EngineMetricsSnapshot",
+    "EngineProcessingResult",
     "ErrorResponse",
     "FieldCleaningConfig",
     "GeoIPConfig",
