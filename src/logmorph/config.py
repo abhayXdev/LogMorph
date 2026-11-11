@@ -55,6 +55,15 @@ class Settings(BaseSettings):
     MITRE_TAGGER_ENABLED: bool = True
     MITRE_RULES_PATH: str | None = None
 
+    # SMTP Settings (Brevo / Transactional Email)
+    SMTP_HOST: str = "smtp-relay.brevo.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_USE_TLS: bool = True
+    EMAIL_FROM: str = "a3fd81001@smtp-brevo.com"
+    FRONTEND_URL: str = "http://localhost:5173"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
