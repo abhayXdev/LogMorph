@@ -58,7 +58,7 @@ frontend/dist/
 frontend/build/
 
 # --- Storage & Data Outputs ---
-storage/
+/storage/
 *.parquet
 
 # --- Project Documents (not source code) ---
