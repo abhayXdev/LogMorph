@@ -10,6 +10,12 @@ from logmorph.engine.normalizers.deduplicator import (
     deduplicate_parsed_result,
     default_deduplication_service,
 )
+from logmorph.engine.normalizers.pipeline import (
+    QualityPipeline,
+    default_quality_pipeline,
+    process_quality_pipeline,
+    process_quality_pipeline_sync,
+)
 from logmorph.engine.normalizers.sanitizer import (
     clean_attributes,
     clean_hostname,
@@ -29,6 +35,7 @@ __all__ = [
     "DeduplicationMetrics",
     "DeduplicationService",
     "InMemoryDeduplicator",
+    "QualityPipeline",
     "RedisDeduplicator",
     "clean_attributes",
     "clean_hostname",
@@ -39,9 +46,12 @@ __all__ = [
     "dedup_metrics",
     "deduplicate_parsed_result",
     "default_deduplication_service",
+    "default_quality_pipeline",
     "format_iso8601_z",
     "is_luhn_valid",
     "normalize_timestamp",
+    "process_quality_pipeline",
+    "process_quality_pipeline_sync",
     "sanitize_parsed_result",
     "scrub_pii",
 ]
