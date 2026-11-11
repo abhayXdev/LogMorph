@@ -169,30 +169,33 @@ class RedisDeduplicator:
         redis_url: str | None = None,
         client: aioredis.Redis | None = None,
     ) -> None:
-        self._redis_url = redis_url or settings.REDIS_URL
+        self._redis_url = settings.REDIS_URL if redis_url is None else redis_url
         self._client: aioredis.Redis | None = client
         self._lua_sha: str | None = None
         self._lock = asyncio.Lock()
+        self._is_disabled: bool = not bool(self._redis_url)
+        self._connection_failed: bool = False
 
     async def get_client(self) -> aioredis.Redis | None:
         """Lazily initialize and return the async Redis connection."""
         if self._client is not None:
             return self._client
 
-        if not self._redis_url:
+        if self._is_disabled or self._connection_failed or not self._redis_url:
             return None
 
         async with self._lock:
-            if self._client is None:
+            if self._client is None and not self._connection_failed:
                 try:
                     self._client = aioredis.from_url(
                         self._redis_url,
                         decode_responses=True,
-                        socket_timeout=1.0,
-                        socket_connect_timeout=1.0,
+                        socket_timeout=0.2,
+                        socket_connect_timeout=0.2,
                     )
                 except Exception as exc:
                     logger.warning("Failed to initialize Redis client: %s", exc)
+                    self._connection_failed = True
                     return None
             return self._client
 
@@ -253,6 +256,7 @@ class RedisDeduplicator:
 
     async def close(self) -> None:
         """Gracefully close the Redis connection pool."""
+        self._connection_failed = False
         if self._client is not None:
             try:
                 await self._client.aclose()
