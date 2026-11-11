@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # Redis (Upstash — Deduplication & Caching)
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # GeoIP Settings (Contextual Enrichment)
+    GEOIP_DB_PATH: str | None = None
+    GEOIP_ENABLED: bool = True
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
