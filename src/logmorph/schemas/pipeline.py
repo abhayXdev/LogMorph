@@ -45,9 +45,9 @@ class QualityPipelineResult(BaseModel):
         default=None,
         description="Outcome of universal timestamp normalization stage.",
     )
-    sanitization_reports: list[SanitizationReport] = Field(
-        default_factory=list,
-        description="List of PII redactions performed during field cleaning.",
+    sanitization_report: SanitizationReport | None = Field(
+        default=None,
+        description="Outcome of field cleaning and PII redaction stage.",
     )
     deduplication_result: DeduplicationResult | None = Field(
         default=None,
