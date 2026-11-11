@@ -47,6 +47,12 @@ from logmorph.schemas.sanitization import (
     SanitizationMaskType,
     SanitizationReport,
 )
+from logmorph.schemas.storage import (
+    LogQueryFilter,
+    LogQueryResponse,
+    LogRecordRead,
+    TenantLogStats,
+)
 from logmorph.schemas.threat_intel import (
     IOCTypeEnum,
     ThreatCategoryEnum,
@@ -76,6 +82,9 @@ __all__ = [
     "IOCTypeEnum",
     "IngestRequest",
     "IngestResponse",
+    "LogQueryFilter",
+    "LogQueryResponse",
+    "LogRecordRead",
     "MitreAttackTag",
     "MitreMetricsSnapshot",
     "MitreRule",
@@ -87,6 +96,7 @@ __all__ = [
     "SanitizationMaskType",
     "SanitizationReport",
     "TACTIC_NAME_MAP",
+    "TenantLogStats",
     "ThreatCategoryEnum",
     "ThreatIndicator",
     "ThreatIntelConfig",
