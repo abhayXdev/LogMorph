@@ -18,6 +18,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    volumes:
+      - ./certs:/app/certs:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
