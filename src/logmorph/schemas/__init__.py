@@ -19,6 +19,14 @@ from logmorph.schemas.ingest import (
     IngestRequest,
     IngestResponse,
 )
+from logmorph.schemas.mitre import (
+    TACTIC_NAME_MAP,
+    MitreAttackTag,
+    MitreMetricsSnapshot,
+    MitreRule,
+    MitreTacticEnum,
+    MitreTaggerConfig,
+)
 from logmorph.schemas.normalization import (
     TimestampFormatEnum,
     TimestampNormalizationResult,
@@ -60,11 +68,17 @@ __all__ = [
     "IOCTypeEnum",
     "IngestRequest",
     "IngestResponse",
+    "MitreAttackTag",
+    "MitreMetricsSnapshot",
+    "MitreRule",
+    "MitreTacticEnum",
+    "MitreTaggerConfig",
     "QualityPipelineConfig",
     "QualityPipelineResult",
     "RawLogMessage",
     "SanitizationMaskType",
     "SanitizationReport",
+    "TACTIC_NAME_MAP",
     "ThreatCategoryEnum",
     "ThreatIndicator",
     "ThreatIntelConfig",
