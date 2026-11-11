@@ -635,10 +635,12 @@ class GeoIPAdapter:
         if not self._config.enabled or not ip:
             return None
 
-        raw_ip = str(ip).strip().strip("[]")
-        # Strip trailing port if present (e.g. "1.1.1.1:8080" or "[2001:db8::1]:443")
-        if ":" in raw_ip and not raw_ip.count(":") >= 2:
-            raw_ip = raw_ip.split(":")[0]
+        raw_ip = str(ip).strip()
+        if raw_ip.startswith("[") and "]" in raw_ip:
+            raw_ip = raw_ip[1 : raw_ip.index("]")].strip()
+        elif ":" in raw_ip and raw_ip.count(":") == 1:
+            raw_ip = raw_ip.split(":")[0].strip()
+        raw_ip = raw_ip.strip("[]").strip()
 
         # Check Cache
         with self._cache_lock:
@@ -657,26 +659,7 @@ class GeoIPAdapter:
         except ValueError:
             return None
 
-        # RFC Filtering: Private, Loopback, Link-Local, Reserved
-        if ip_obj.is_private:
-            result = GeoIPLookupResult(
-                ip=raw_ip,
-                country="Private Network",
-                country_code=None,
-                city="Internal Network",
-                is_private=True,
-                is_bogon=False,
-                resolved_by="RFC_PRIVATE",
-            )
-            with self._cache_lock:
-                self._cache[raw_ip] = result
-            self._metrics.record_lookup(
-                is_cache_hit=False,
-                is_private=True,
-                resolved_by="RFC_PRIVATE",
-            )
-            return result
-
+        # RFC Filtering: Loopback and Bogon checked before generic private
         if ip_obj.is_loopback:
             result = GeoIPLookupResult(
                 ip=raw_ip,
@@ -711,6 +694,25 @@ class GeoIPAdapter:
                 is_cache_hit=False,
                 is_private=True,
                 resolved_by="RFC_RESERVED",
+            )
+            return result
+
+        if ip_obj.is_private:
+            result = GeoIPLookupResult(
+                ip=raw_ip,
+                country="Private Network",
+                country_code=None,
+                city="Internal Network",
+                is_private=True,
+                is_bogon=False,
+                resolved_by="RFC_PRIVATE",
+            )
+            with self._cache_lock:
+                self._cache[raw_ip] = result
+            self._metrics.record_lookup(
+                is_cache_hit=False,
+                is_private=True,
+                resolved_by="RFC_PRIVATE",
             )
             return result
 
