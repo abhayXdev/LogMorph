@@ -5,7 +5,6 @@ Tenant Provisioning -> Email Verification -> API Key -> Log Source -> Ingestion 
 Engine Cascade Processing -> Hot Storage -> Search & Retrieval API -> Stats -> Tenant Isolation.
 """
 
-from datetime import UTC, datetime, timedelta
 import uuid
 
 import pytest
@@ -99,7 +98,7 @@ async def test_full_e2e_tenant_lifecycle_ingest_to_search(
         },
     )
     assert source_resp.status_code == 201
-    source_id = source_resp.json()["id"]
+    assert "id" in source_resp.json()
 
     # 6. Ingest raw log via Ingestion Webhook
     raw_syslog = (
