@@ -32,15 +32,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Security: Create unprivileged system group and user
-RUN groupadd -g 10001 logmorph && \
-    useradd -u 10001 -g logmorph -s /bin/bash -m logmorph
+# Security: Create unprivileged system group and user (UID 1000 for Hugging Face Spaces & standard Linux)
+RUN groupadd -g 1000 logmorph && \
+    useradd -u 1000 -g logmorph -s /bin/bash -m logmorph
 
 # Environment configuration
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app/src \
-    PORT=8000
+    PORT=7860
 
 # Copy pre-built wheels from builder stage and install
 COPY --from=builder /build/wheels /wheels
@@ -58,12 +58,12 @@ RUN chown -R logmorph:logmorph /app
 # Switch to non-root user
 USER logmorph
 
-# Expose HTTP port
-EXPOSE 8000
+# Expose HTTP ports (7860 for Hugging Face Spaces, 8000 for local docker compose)
+EXPOSE 7860 8000
 
 # Docker Healthcheck pinging /health
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
+    CMD curl -f http://localhost:${PORT:-7860}/health || exit 1
 
-# Production entrypoint supporting dynamic cloud $PORT
-CMD ["sh", "-c", "uvicorn logmorph.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --proxy-headers"]
+# Production entrypoint supporting dynamic cloud $PORT (Hugging Face 7860, Render 10000, Compose 8000)
+CMD ["sh", "-c", "uvicorn logmorph.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 2 --proxy-headers"]

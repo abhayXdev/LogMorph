@@ -99,3 +99,15 @@ def test_ssl_context_building_with_cafile():
     if os.path.exists(cafile):
         ctx = producer._build_ssl_context()
         assert ctx is not None
+
+
+def test_ssl_context_building_with_inline_cadata(monkeypatch: pytest.MonkeyPatch):
+    """Verify that _build_ssl_context loads inline CA cert string when configured."""
+    producer = LogMorphKafkaProducer()
+    cafile = "certs/ca.pem"
+    if os.path.exists(cafile):
+        with open(cafile) as f:
+            ca_content = f.read()
+        monkeypatch.setattr(settings, "KAFKA_SSL_CA_CERT", ca_content)
+        ctx = producer._build_ssl_context()
+        assert ctx is not None

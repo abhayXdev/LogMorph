@@ -51,6 +51,10 @@ class LogMorphKafkaProducer:
 
         ssl_context = ssl.create_default_context(cafile=cafile)
 
+        # Allow passing inline CA certificate string (e.g. for cloud/HuggingFace/Render secrets)
+        if settings.KAFKA_SSL_CA_CERT:
+            ssl_context.load_verify_locations(cadata=settings.KAFKA_SSL_CA_CERT)
+
         # Check for mTLS client certificate and private key
         certfile = settings.KAFKA_SSL_CERTFILE
         keyfile = settings.KAFKA_SSL_KEYFILE

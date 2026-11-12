@@ -1,3 +1,13 @@
+---
+title: LogMorph API
+emoji: 🛡️
+colorFrom: purple
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # LogMorph
 
 **Universal Log Pre-processing Framework** — A multi-tenant SaaS platform that automatically detects, parses, normalizes, cleans, and enriches heterogeneous log data from any source into a unified, analysis-ready schema.
