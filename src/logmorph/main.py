@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -194,6 +194,12 @@ async def health_check(
 async def root_redirect() -> RedirectResponse:
     """Redirect root path to interactive Swagger documentation."""
     return RedirectResponse(url="/docs")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    """Return 204 No Content for browser favicon requests to avoid 404 log noise."""
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # Mount API Routers
