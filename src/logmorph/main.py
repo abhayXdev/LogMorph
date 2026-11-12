@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -188,6 +188,12 @@ async def health_check(
         "redis": redis_status,
         "uptime_seconds": uptime_seconds,
     }
+
+
+@app.get("/", include_in_schema=False)
+async def root_redirect() -> RedirectResponse:
+    """Redirect root path to interactive Swagger documentation."""
+    return RedirectResponse(url="/docs")
 
 
 # Mount API Routers
