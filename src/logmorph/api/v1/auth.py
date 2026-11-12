@@ -68,7 +68,26 @@ async def signup(
     # 1. Check if email already registered
     existing_stmt = select(User).where(User.email == payload.email.lower().strip())
     existing_res = await session.exec(existing_stmt)
-    if existing_res.first():
+    existing_user = existing_res.first()
+    if existing_user:
+        if not existing_user.is_verified:
+            # Resend verification email for unverified user
+            raw_token = secrets.token_urlsafe(32)
+            existing_user.verification_token_hash = hash_token(raw_token)
+            existing_user.verification_token_expires_at = datetime.now(UTC) + timedelta(hours=24)
+            session.add(existing_user)
+            await session.commit()
+
+            email_service = get_email_service()
+            await email_service.send_verification_email(
+                to_email=existing_user.email,
+                full_name=existing_user.full_name,
+                raw_token=raw_token,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An unverified account with this email already exists. A fresh verification link has been sent to your email.",
+            )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
@@ -150,6 +169,12 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Wrong email or password",
+        )
+
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email address not verified. Please verify your email before logging in. Check your inbox or use /auth/resend-verification to request a new link.",
         )
 
     access_token = create_access_token(subject=user.id, email=user.email)

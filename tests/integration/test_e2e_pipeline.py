@@ -194,6 +194,20 @@ async def test_e2e_cross_tenant_isolation_zero_leakage(
     token_b = signup_b.json()["access_token"]
     headers_b = {"Authorization": f"Bearer {token_b}"}
 
+    # Verify both tenants to activate their SaaS access
+    stmt_a = select(User).where(User.email == "victim_a@corp.com")
+    user_a = (await async_db.exec(stmt_a)).first()
+    assert user_a is not None
+    user_a.is_verified = True
+    async_db.add(user_a)
+
+    stmt_b = select(User).where(User.email == "attacker_b@corp.com")
+    user_b = (await async_db.exec(stmt_b)).first()
+    assert user_b is not None
+    user_b.is_verified = True
+    async_db.add(user_b)
+    await async_db.commit()
+
     # Ingest and store log belonging to Tenant A
     engine = LogMorphEngine()
     raw_log = '{"event": "confidential_security_incident", "severity": "CRITICAL"}'
@@ -251,6 +265,14 @@ async def test_e2e_multi_format_cascade_processing(
     user_id = signup.json()["id"]
     token = signup.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+
+    # Verify tenant to activate SaaS access
+    stmt = select(User).where(User.email == "format_tester@corp.com")
+    user = (await async_db.exec(stmt)).first()
+    assert user is not None
+    user.is_verified = True
+    async_db.add(user)
+    await async_db.commit()
 
     engine = LogMorphEngine()
     storage = get_storage_adapter()

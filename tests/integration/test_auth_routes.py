@@ -85,6 +85,7 @@ async def test_login_success(
         email="bob@logmorph.io",
         full_name="Bob Engineer",
         hashed_password=hash_password(plain_pw),
+        is_verified=True,
     )
     async_db.add(user)
     await async_db.commit()
@@ -95,6 +96,28 @@ async def test_login_success(
     data = response.json()
     assert "access_token" in data
     assert data["email"] == "bob@logmorph.io"
+
+
+@pytest.mark.asyncio
+async def test_login_unverified_user_blocked_403(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify that unverified users are blocked from logging in with 403 Forbidden."""
+    plain_pw = "ValidP@ssword2026"
+    user = User(
+        email="unverified_bob@logmorph.io",
+        full_name="Unverified Bob",
+        hashed_password=hash_password(plain_pw),
+        is_verified=False,
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    payload = {"email": "unverified_bob@logmorph.io", "password": plain_pw}
+    response = await async_client.post("/auth/login", json=payload)
+    assert response.status_code == 403
+    assert "not verified" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -267,6 +290,7 @@ async def test_reset_password_success(
         reset_token_hash=token_hash,
         reset_token_expires_at=expires_at,
         token_version=1,
+        is_verified=True,
     )
     async_db.add(user)
     await async_db.commit()
@@ -311,6 +335,7 @@ async def test_change_password_flow(
         email="changer@logmorph.io",
         full_name="Changer User",
         hashed_password=hash_password(old_pw),
+        is_verified=True,
     )
     async_db.add(user)
     await async_db.commit()
