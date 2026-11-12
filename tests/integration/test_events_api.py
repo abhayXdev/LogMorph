@@ -31,6 +31,7 @@ async def _create_test_tenant(
         email=email,
         full_name=full_name,
         hashed_password=hash_password("AnalystPass#2026"),
+        is_verified=True,
     )
     session.add(user)
     await session.commit()

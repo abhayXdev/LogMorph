@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
     SMTP_USE_TLS: bool = True
-    EMAIL_FROM: str = "a3fd81001@smtp-brevo.com"
+    EMAIL_FROM: str = "abhaypaul058@gmail.com"
     FRONTEND_URL: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(

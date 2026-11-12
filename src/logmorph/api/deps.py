@@ -120,6 +120,12 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account unverified. Please verify your email address to access SaaS resources.",
+        )
+
     return user
 
 
@@ -166,6 +172,11 @@ async def get_current_tenant(
         user = user_res.first()
         if not user:
             raise InvalidApiKeyException(detail="Tenant user associated with API key not found")
+        if not user.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account unverified. Please verify your email address to access SaaS resources.",
+            )
         return user
 
     # 2. Otherwise treat as JWT access token
@@ -194,6 +205,12 @@ async def get_current_tenant(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account not found or deactivated",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account unverified. Please verify your email address to access SaaS resources.",
         )
 
     return user
