@@ -117,6 +117,9 @@ async def test_sandbox_parse_syslog_log(
     assert "event" in data
     assert data["event"]["severity"] in ("CRITICAL", "INFORMATIONAL", "NOTICE")
     assert data["event"]["raw_log"] == raw
+    assert "processing_ms" in data
+    assert isinstance(data["processing_ms"], (int, float))
+    assert data["processing_ms"] >= 0.0
 
 
 @pytest.mark.asyncio
@@ -133,6 +136,9 @@ async def test_sandbox_parse_json_log(
     data = response.json()
     assert data["detected_format"] == "JSON"
     assert data["event"]["detected_format"] == "JSON"
+    assert "processing_ms" in data
+    assert isinstance(data["processing_ms"], (int, float))
+    assert data["processing_ms"] >= 0.0
 
 
 # ==============================================================================

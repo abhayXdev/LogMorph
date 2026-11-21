@@ -16,10 +16,14 @@ class SandboxParseRequest(BaseModel):
 
 
 class SandboxParseResponse(BaseModel):
-    """Response containing detected format, parsing tier, and normalized ULS structure."""
+    """Response containing detected format, parsing tier, normalized ULS structure, and server latency."""
 
     model_config = ConfigDict(frozen=True)
 
     detected_format: str
     parsed_by: str
     event: EventItem
+    processing_ms: float = Field(
+        ...,
+        description="Server-side parsing cascade and normalization latency in milliseconds",
+    )

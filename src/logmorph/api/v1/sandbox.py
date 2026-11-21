@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
@@ -27,10 +28,12 @@ async def parse_sandbox_log(
     engine = get_engine()
     temp_tenant_id = uuid.uuid4()
 
+    start_time = time.perf_counter()
     res = await engine.process_async(
         raw_log=payload.raw_log,
         tenant_id=temp_tenant_id,
     )
+    elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
     if res.event is None:
         raise HTTPException(
@@ -56,4 +59,5 @@ async def parse_sandbox_log(
         detected_format=fmt_str,
         parsed_by=tier_str,
         event=event_item,
+        processing_ms=elapsed_ms,
     )
