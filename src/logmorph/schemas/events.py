@@ -13,6 +13,7 @@ class EventSourceInfo(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    name: str | None = Field(default=None, description="Human-readable project or source name (e.g. Payment Gateway, Mobile App)")
     ip: str | None = None
     hostname: str | None = None
     port: int | None = None
@@ -61,6 +62,7 @@ class EventItem(BaseModel):
     raw_log: str
     detected_format: str
     severity: str
+    source_name: str | None = Field(default=None, description="Human-readable project or source name alias")
     source: EventSourceInfo | None = None
     destination: EventDestinationInfo | None = None
     security: EventSecurityInfo | None = None

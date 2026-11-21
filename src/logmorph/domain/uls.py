@@ -48,6 +48,7 @@ class SourceInfo(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
+    name: str | None = None
     ip: str | None = None
     hostname: str | None = None
     port: int | None = None

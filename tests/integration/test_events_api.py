@@ -594,3 +594,77 @@ async def test_delete_event_cross_tenant_forbidden_returns_404(
     existing = await adapter.get_event_detail(async_db, tenant_id=tenant_b.id, event_id="evt_protected_b")
     assert existing is not None
     assert existing.event_id == "evt_protected_b"
+
+
+# ==============================================================================
+# 9. Project / Source Name Attribution and Filtering Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_event_source_project_name_attribution_and_filter(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify source project name (e.g. Payment Gateway) attribution and filtering."""
+    tenant, token, _ = await _create_test_tenant(async_db, email="project_filter@soc.com")
+    adapter = get_storage_adapter()
+
+    # 1. Seed two events with distinct project names
+    event_pg = UniversalLogEvent(
+        tenant_id=tenant.id,
+        event_id="evt_pg_001",
+        raw_log="Payment transaction processed 200 OK",
+        detected_format=LogFormatEnum.JSON,
+        severity=SeverityEnum.INFORMATIONAL,
+        source=SourceInfo(name="Payment Gateway", ip="10.0.1.5"),
+        attributes={"source_name": "Payment Gateway", "transaction_id": "tx_999"},
+    )
+    event_mobile = UniversalLogEvent(
+        tenant_id=tenant.id,
+        event_id="evt_mobile_002",
+        raw_log="User logged in from iOS device",
+        detected_format=LogFormatEnum.JSON,
+        severity=SeverityEnum.NOTICE,
+        source=SourceInfo(name="Mobile App", ip="192.168.1.100"),
+        attributes={"source_name": "Mobile App", "device": "iPhone15"},
+    )
+    await adapter.store_batch(async_db, [event_pg, event_mobile])
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Query all events: verify both have source.name and source_name populated
+    all_resp = await async_client.get("/api/v1/events", headers=headers)
+    assert all_resp.status_code == 200
+    all_events = all_resp.json()["events"]
+    assert len(all_events) == 2
+
+    # Map by event_id for assertions
+    events_by_id = {e["event_id"]: e for e in all_events}
+    assert events_by_id["evt_pg_001"]["source_name"] == "Payment Gateway"
+    assert events_by_id["evt_pg_001"]["source"]["name"] == "Payment Gateway"
+    assert events_by_id["evt_mobile_002"]["source_name"] == "Mobile App"
+    assert events_by_id["evt_mobile_002"]["source"]["name"] == "Mobile App"
+
+    # 3. Filter specifically by source=Payment Gateway
+    pg_resp = await async_client.get("/api/v1/events?source=Payment Gateway", headers=headers)
+    assert pg_resp.status_code == 200
+    pg_data = pg_resp.json()
+    assert pg_data["pagination"]["total"] == 1
+    assert pg_data["events"][0]["event_id"] == "evt_pg_001"
+    assert pg_data["events"][0]["source_name"] == "Payment Gateway"
+
+    # 4. Filter specifically by source=Mobile App
+    mobile_resp = await async_client.get("/api/v1/events?source=Mobile App", headers=headers)
+    assert mobile_resp.status_code == 200
+    mobile_data = mobile_resp.json()
+    assert mobile_data["pagination"]["total"] == 1
+    assert mobile_data["events"][0]["event_id"] == "evt_mobile_002"
+    assert mobile_data["events"][0]["source_name"] == "Mobile App"
+
+    # 5. Verify Event Detail endpoint also returns source_name and source.name
+    detail_resp = await async_client.get("/api/v1/events/evt_pg_001", headers=headers)
+    assert detail_resp.status_code == 200
+    detail_data = detail_resp.json()
+    assert detail_data["source_name"] == "Payment Gateway"
+    assert detail_data["source"]["name"] == "Payment Gateway"

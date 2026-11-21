@@ -75,6 +75,10 @@ def log_event_to_record(event: UniversalLogEvent) -> LogRecord:
         else str(event.parsed_by)
     )
 
+    attrs = dict(event.attributes)
+    if event.source and event.source.name and "source_name" not in attrs:
+        attrs["source_name"] = event.source.name
+
     return LogRecord(
         tenant_id=event.tenant_id,
         event_id=event.event_id,
@@ -91,13 +95,13 @@ def log_event_to_record(event: UniversalLogEvent) -> LogRecord:
         user=user_val,
         process_name=proc_val,
         parsed_by=tier_str,
-        is_duplicate=bool(event.attributes.get("is_duplicate", False)),
+        is_duplicate=bool(attrs.get("is_duplicate", False)),
         threat_matched=threat_matched,
         threat_id=threat_id_val,
         mitre_technique=mitre_tech,
         mitre_tactic=mitre_tac,
         geoip_country=geoip_ctry,
-        attributes_json=json.dumps(event.attributes, default=str),
+        attributes_json=json.dumps(attrs, default=str),
         enrichment_json=(
             event.enrichment.model_dump_json() if event.enrichment else None
         ),
@@ -149,14 +153,24 @@ def record_to_event_item(record: LogRecord) -> EventItem:
         except Exception:
             attrs = {}
 
+    src_name = (
+        attrs.get("source_name")
+        or attrs.get("source")
+        or attrs.get("hostname")
+        or attrs.get("source_hostname")
+        or record.source_ip
+    )
+
     src_info = None
     if (
-        record.source_ip
+        src_name
+        or record.source_ip
         or record.source_port
         or attrs.get("hostname")
         or attrs.get("source_hostname")
     ):
         src_info = EventSourceInfo(
+            name=src_name,
             ip=record.source_ip,
             hostname=attrs.get("hostname") or attrs.get("source_hostname"),
             port=record.source_port,
@@ -216,6 +230,7 @@ def record_to_event_item(record: LogRecord) -> EventItem:
         raw_log=record.raw_log,
         detected_format=record.detected_format,
         severity=record.severity,
+        source_name=src_name,
         source=src_info,
         destination=dst_info,
         security=sec_info,
@@ -235,6 +250,7 @@ def record_to_event_detail(record: LogRecord) -> EventDetailResponse:
         raw_log=item.raw_log,
         detected_format=item.detected_format,
         severity=item.severity,
+        source_name=item.source_name,
         source=item.source,
         destination=item.destination,
         security=item.security,
@@ -302,7 +318,13 @@ class PostgresStorageAdapter:
         if params.mitre_technique:
             conditions.append(col(LogRecord.mitre_technique) == params.mitre_technique)
         if params.source_ip:
-            conditions.append(col(LogRecord.source_ip) == params.source_ip)
+            conditions.append(
+                or_(
+                    col(LogRecord.source_ip) == params.source_ip,
+                    col(LogRecord.attributes_json).ilike(f'%"source_name": "{params.source_ip}"%'),
+                    col(LogRecord.attributes_json).ilike(f'%"source": "{params.source_ip}"%'),
+                )
+            )
         if params.destination_ip:
             conditions.append(col(LogRecord.destination_ip) == params.destination_ip)
         if params.search_term:
@@ -372,7 +394,13 @@ class PostgresStorageAdapter:
         if params.mitre_technique:
             conditions.append(col(LogRecord.mitre_technique) == params.mitre_technique)
         if params.source_ip:
-            conditions.append(col(LogRecord.source_ip) == params.source_ip)
+            conditions.append(
+                or_(
+                    col(LogRecord.source_ip) == params.source_ip,
+                    col(LogRecord.attributes_json).ilike(f'%"source_name": "{params.source_ip}"%'),
+                    col(LogRecord.attributes_json).ilike(f'%"source": "{params.source_ip}"%'),
+                )
+            )
         if params.destination_ip:
             conditions.append(col(LogRecord.destination_ip) == params.destination_ip)
         if params.search_term:

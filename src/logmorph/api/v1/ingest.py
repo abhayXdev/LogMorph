@@ -52,12 +52,17 @@ async def ingest_single_log(
 ) -> IngestResponse:
     """Ingest a single log line."""
     event_id = f"evt_{uuid.uuid4()}"
+    resolved_source = (
+        payload.source.strip()
+        if payload.source and payload.source.strip()
+        else api_key.name
+    )
 
     message = RawLogMessage(
         event_id=event_id,
         tenant_id=api_key.user_id,
         raw_log=payload.raw_log,
-        source=payload.source,
+        source=resolved_source,
         ingested_at=datetime.now(UTC),
     )
     await producer.send_log(message)
@@ -99,6 +104,11 @@ async def ingest_batch_logs(
 ) -> BatchIngestResponse:
     """Ingest multiple log lines in a single batch."""
     now = datetime.now(UTC)
+    resolved_source = (
+        payload.source.strip()
+        if payload.source and payload.source.strip()
+        else api_key.name
+    )
     event_ids: list[str] = []
     messages: list[RawLogMessage] = []
 
@@ -110,7 +120,7 @@ async def ingest_batch_logs(
                 event_id=event_id,
                 tenant_id=api_key.user_id,
                 raw_log=raw_log,
-                source=payload.source,
+                source=resolved_source,
                 ingested_at=now,
             )
         )
