@@ -1,6 +1,7 @@
 """Apache Kafka producer service with Aiven SSL and fallback buffering."""
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -46,14 +47,31 @@ class LogMorphKafkaProducer:
         cafile = settings.KAFKA_SSL_CAFILE
         # Verify cafile exists on filesystem if configured
         if cafile and not os.path.exists(cafile):
-            logger.warning("Configured KAFKA_SSL_CAFILE not found: %s", cafile)
-            cafile = None
+            alt_path = os.path.join(os.getcwd(), cafile)
+            if os.path.exists(alt_path):
+                cafile = alt_path
+            else:
+                logger.warning("Configured KAFKA_SSL_CAFILE not found: %s", cafile)
+                cafile = None
 
         ssl_context = ssl.create_default_context(cafile=cafile)
 
         # Allow passing inline CA certificate string (e.g. for cloud/HuggingFace/Render secrets)
         if settings.KAFKA_SSL_CA_CERT:
-            ssl_context.load_verify_locations(cadata=settings.KAFKA_SSL_CA_CERT)
+            ca_str = settings.KAFKA_SSL_CA_CERT.strip()
+            if not ca_str.startswith("-----BEGIN"):
+                try:
+                    import base64
+                    decoded = base64.b64decode(ca_str).decode("utf-8")
+                    if "-----BEGIN" in decoded:
+                        ca_str = decoded
+                except Exception:
+                    pass
+            try:
+                ssl_context.load_verify_locations(cadata=ca_str)
+                logger.info("Loaded custom Kafka CA certificate from KAFKA_SSL_CA_CERT")
+            except Exception as e:
+                logger.warning("Failed to load KAFKA_SSL_CA_CERT: %s", e)
 
         # Check for mTLS client certificate and private key
         certfile = settings.KAFKA_SSL_CERTFILE
@@ -105,7 +123,10 @@ class LogMorphKafkaProducer:
                 e,
             )
             self._is_connected = False
-            self._producer = None
+            if self._producer:
+                with contextlib.suppress(Exception):
+                    await self._producer.stop()
+                self._producer = None
 
     async def stop(self) -> None:
         """Flush remaining messages and cleanly terminate connections."""

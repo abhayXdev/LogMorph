@@ -9,6 +9,8 @@ import smtplib
 from email.message import EmailMessage
 from typing import Any
 
+import httpx
+
 from logmorph.config import settings
 
 logger = logging.getLogger(__name__)
@@ -198,9 +200,86 @@ class EmailService:
     def __init__(self) -> None:
         self.sent_emails: list[dict[str, Any]] = []
 
+    async def _send_via_brevo_api(
+        self,
+        api_key: str,
+        to_email: str,
+        subject: str,
+        html_content: str,
+        text_content: str,
+    ) -> bool:
+        """Dispatch email via Brevo transactional HTTP REST API over HTTPS port 443."""
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "api-key": api_key,
+            "accept": "application/json",
+            "content-type": "application/json",
+        }
+        payload = {
+            "sender": {"email": settings.EMAIL_FROM, "name": "LogMorph"},
+            "to": [{"email": to_email}],
+            "subject": subject,
+            "htmlContent": html_content,
+            "textContent": text_content,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                if resp.status_code in (200, 201, 202):
+                    logger.info("Successfully dispatched email to %s via Brevo HTTP REST API (port 443)", to_email)
+                    return True
+                logger.warning(
+                    "Brevo HTTP API returned status %d for %s: %s",
+                    resp.status_code,
+                    to_email,
+                    resp.text[:200],
+                )
+                return False
+        except Exception as e:
+            logger.warning("Brevo HTTP API dispatch encountered error for %s: %s", to_email, e)
+            return False
+
+    async def _send_via_resend_api(
+        self,
+        api_key: str,
+        to_email: str,
+        subject: str,
+        html_content: str,
+        text_content: str,
+    ) -> bool:
+        """Dispatch email via Resend HTTP REST API over HTTPS port 443."""
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "from": settings.EMAIL_FROM,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content,
+            "text": text_content,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                if resp.status_code in (200, 201, 202):
+                    logger.info("Successfully dispatched email to %s via Resend HTTP REST API (port 443)", to_email)
+                    return True
+                logger.warning(
+                    "Resend HTTP API returned status %d for %s: %s",
+                    resp.status_code,
+                    to_email,
+                    resp.text[:200],
+                )
+                return False
+        except Exception as e:
+            logger.warning("Resend HTTP API dispatch encountered error for %s: %s", to_email, e)
+            return False
+
     def _send_sync_smtp(self, msg: EmailMessage) -> None:
         """Synchronous SMTP socket send intended to run in a background worker thread."""
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
             if settings.SMTP_USE_TLS:
                 server.starttls()
             if settings.SMTP_USER and settings.SMTP_PASSWORD:
@@ -214,7 +293,7 @@ class EmailService:
         html_content: str,
         text_content: str,
     ) -> bool:
-        """Dispatch email via SMTP or capture in memory/console during tests/dev."""
+        """Dispatch email via HTTPS REST API (Brevo/Resend) or SMTP, with console logging."""
         record = {
             "to": to_email,
             "subject": subject,
@@ -223,10 +302,19 @@ class EmailService:
         }
         self.sent_emails.append(record)
 
-        # In testing environment or if SMTP credentials are not configured, log to console
-        if settings.ENVIRONMENT == "test" or not (
-            settings.SMTP_USER and settings.SMTP_PASSWORD
-        ):
+        # 1. In testing environment or if no credentials configured, log to console
+        brevo_key = settings.BREVO_API_KEY or (
+            settings.SMTP_PASSWORD
+            if (settings.SMTP_PASSWORD and settings.SMTP_PASSWORD.startswith("xkeysib-"))
+            else None
+        )
+        has_credentials = bool(
+            brevo_key
+            or settings.RESEND_API_KEY
+            or (settings.SMTP_USER and settings.SMTP_PASSWORD)
+        )
+
+        if settings.ENVIRONMENT == "test" or not has_credentials:
             logger.info(
                 "[MOCK EMAIL DISPATCH] To: %s | Subject: %s | Content Preview: %s",
                 to_email,
@@ -235,25 +323,41 @@ class EmailService:
             )
             return True
 
-        # Send via live SMTP server in separate thread to prevent blocking asyncio loop
-        msg = EmailMessage()
-        msg["Subject"] = subject
-        msg["From"] = settings.EMAIL_FROM
-        msg["To"] = to_email
-        msg.set_content(text_content)
-        msg.add_alternative(html_content, subtype="html")
-
-        try:
-            await asyncio.to_thread(self._send_sync_smtp, msg)
-            logger.info("Successfully dispatched email to %s via SMTP", to_email)
+        # 2. Priority 1: Brevo HTTP REST API (HTTPS port 443 — works everywhere on Render/cloud)
+        if brevo_key and await self._send_via_brevo_api(
+            brevo_key, to_email, subject, html_content, text_content
+        ):
             return True
-        except Exception as e:
-            logger.warning(
-                "Failed to send email to %s via SMTP (%s). Falling back to log record.",
-                to_email,
-                e,
-            )
-            return False
+
+        # 3. Priority 2: Resend HTTP REST API (HTTPS port 443)
+        if settings.RESEND_API_KEY and await self._send_via_resend_api(
+            settings.RESEND_API_KEY, to_email, subject, html_content, text_content
+        ):
+            return True
+
+        # 4. Priority 3: Standard SMTP (for environments where outbound ports 587/465 are permitted)
+        if settings.SMTP_USER and settings.SMTP_PASSWORD:
+            msg = EmailMessage()
+            msg["Subject"] = subject
+            msg["From"] = settings.EMAIL_FROM
+            msg["To"] = to_email
+            msg.set_content(text_content)
+            msg.add_alternative(html_content, subtype="html")
+
+            try:
+                await asyncio.to_thread(self._send_sync_smtp, msg)
+                logger.info("Successfully dispatched email to %s via SMTP", to_email)
+                return True
+            except Exception as e:
+                logger.warning(
+                    "Failed to send email to %s via SMTP (%s). "
+                    "Note: Render Free Tier blocks outbound ports 25, 465, and 587. "
+                    "Use BREVO_API_KEY or RESEND_API_KEY to send over HTTPS port 443.",
+                    to_email,
+                    e,
+                )
+
+        return False
 
     async def send_verification_email(
         self,
@@ -285,7 +389,14 @@ class EmailService:
             security_footer="If you didn't create an account with LogMorph, you can safely ignore this email.",
         )
 
-        return await self._send_email(to_email, subject, html_content, text_content)
+        sent = await self._send_email(to_email, subject, html_content, text_content)
+        logger.info(
+            "[ACCOUNT VERIFICATION LINK] Recipient: %s | URL: %s (delivered: %s)",
+            to_email,
+            verification_url,
+            sent,
+        )
+        return sent
 
     async def send_password_reset_email(
         self,
@@ -318,7 +429,14 @@ class EmailService:
             security_footer="If you didn't request a password reset, you can safely ignore this email. Your account remains secure.",
         )
 
-        return await self._send_email(to_email, subject, html_content, text_content)
+        sent = await self._send_email(to_email, subject, html_content, text_content)
+        logger.info(
+            "[PASSWORD RESET LINK] Recipient: %s | URL: %s (delivered: %s)",
+            to_email,
+            reset_url,
+            sent,
+        )
+        return sent
 
     async def send_password_changed_notification(
         self,
