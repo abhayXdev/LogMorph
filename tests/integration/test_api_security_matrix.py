@@ -306,3 +306,39 @@ async def test_pydantic_validation_error_envelope(async_client: AsyncClient):
     assert data["status_code"] == 422
     assert data["error_code"] == "VALIDATION_ERROR"
     assert "detail" in data
+
+
+# ==============================================================================
+# 5. Standardized 405 Method Not Allowed Contract Tests (FIX-P5)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_405_method_not_allowed_standard_envelope(async_client: AsyncClient):
+    """Verify HTTP 405 errors return standardized API contract envelope and Allow headers."""
+    cases = [
+        ("DELETE", "/auth/login"),
+        ("GET", "/auth/signup"),
+        ("PATCH", "/api/v1/ingest"),
+        ("PUT", "/api/v1/events"),
+    ]
+
+    for method, path in cases:
+        resp = await async_client.request(method, path)
+        assert resp.status_code == 405, f"Expected 405 for {method} {path}, got {resp.status_code}"
+        data = resp.json()
+        assert data["status_code"] == 405
+        assert data["error_code"] == "METHOD_NOT_ALLOWED"
+        assert "detail" in data
+        assert "allow" in resp.headers, f"Missing Allow header for {method} {path}"
+
+
+@pytest.mark.asyncio
+async def test_404_not_found_standard_envelope(async_client: AsyncClient):
+    """Verify routing-level 404 errors return standardized API contract envelope."""
+    resp = await async_client.get("/api/v1/nonexistent-unmatched-route")
+    assert resp.status_code == 404
+    data = resp.json()
+    assert data["status_code"] == 404
+    assert data["error_code"] == "NOT_FOUND"
+    assert "detail" in data
