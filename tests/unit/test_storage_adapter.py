@@ -9,9 +9,10 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from logmorph.db.models import User
+from logmorph.db.models import LogRecord, User
 from logmorph.domain.uls import (
     DestinationInfo,
     EnrichmentContext,
@@ -479,3 +480,56 @@ def test_default_singleton_accessor() -> None:
     """get_storage_adapter returns a configured PostgresStorageAdapter instance."""
     adapter = get_storage_adapter()
     assert isinstance(adapter, PostgresStorageAdapter)
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_log_record_audit_preservation(
+    storage_adapter: PostgresStorageAdapter,
+    async_db: AsyncSession,
+    tenant_user: User,
+) -> None:
+    """Verify that deleting a log marks tombstone without purging from PostgreSQL/database."""
+    event = UniversalLogEvent(
+        tenant_id=tenant_user.id,
+        event_id="evt_audit_tombstone_01",
+        raw_log="Firewall block port 445 SMB probe",
+        detected_format=LogFormatEnum.CEF,
+        severity=SeverityEnum.WARNING,
+    )
+    await storage_adapter.store_event(async_db, event)
+
+    # 1. Verify log is initially queryable
+    read_item = await storage_adapter.get_log_by_id(async_db, tenant_user.id, "evt_audit_tombstone_01")
+    assert read_item is not None
+    assert read_item.event_id == "evt_audit_tombstone_01"
+
+    # 2. Soft-delete the log
+    deleted = await storage_adapter.delete_log(async_db, tenant_user.id, "evt_audit_tombstone_01")
+    assert deleted is True
+
+    # 3. Subsequent reads must return None
+    assert await storage_adapter.get_log_by_id(async_db, tenant_user.id, "evt_audit_tombstone_01") is None
+    assert await storage_adapter.get_event_detail(async_db, tenant_user.id, "evt_audit_tombstone_01") is None
+
+    # 4. Search and list queries must omit soft-deleted log
+    items, total = await storage_adapter.query_event_items(async_db, tenant_user.id)
+    assert total == 0
+    assert len(items) == 0
+
+    search_items, search_total = await storage_adapter.search_events(async_db, tenant_user.id, "Firewall")
+    assert search_total == 0
+    assert len(search_items) == 0
+
+    # 5. Re-deleting the same log returns False
+    assert await storage_adapter.delete_log(async_db, tenant_user.id, "evt_audit_tombstone_01") is False
+
+    # 6. Direct database query proves the row is NOT dropped: tombstone audit preserved!
+    stmt = select(LogRecord).where(
+        LogRecord.tenant_id == tenant_user.id,
+        LogRecord.event_id == "evt_audit_tombstone_01",
+    )
+    db_record = (await async_db.exec(stmt)).first()
+    assert db_record is not None
+    assert db_record.is_deleted is True
+    assert db_record.deleted_at is not None
+

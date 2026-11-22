@@ -4,11 +4,12 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.core.keys import generate_api_key
 from logmorph.core.security import create_access_token, hash_password
-from logmorph.db.models import ApiKey, User
+from logmorph.db.models import ApiKey, LogRecord, User
 from logmorph.domain.uls import (
     EnrichmentContext,
     GeoIPContext,
@@ -565,6 +566,12 @@ async def test_delete_event_success(
     # 3. Subsequent DELETE returns 404
     del_resp2 = await async_client.delete("/api/v1/events/evt_to_delete", headers=headers)
     assert del_resp2.status_code == 404
+
+    # 4. Forensic DB verification: row retained with is_deleted=True and deleted_at!=None
+    db_record = (await async_db.exec(select(LogRecord).where(LogRecord.event_id == "evt_to_delete"))).first()
+    assert db_record is not None
+    assert db_record.is_deleted is True
+    assert db_record.deleted_at is not None
 
 
 @pytest.mark.asyncio

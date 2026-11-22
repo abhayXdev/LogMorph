@@ -4,10 +4,11 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.core.security import create_access_token, hash_password
-from logmorph.db.models import LogSource, User
+from logmorph.db.models import ApiKey, LogSource, User
 from logmorph.domain.uls import (
     EnrichmentContext,
     LogFormatEnum,
@@ -93,6 +94,21 @@ async def test_api_keys_crud_lifecycle(
         headers={"Authorization": f"Bearer {raw_key}"},
     )
     assert revoked_resp.status_code == 401
+
+    # 6. Listing keys omits revoked key
+    list_after = await async_client.get("/api/v1/keys", headers=headers)
+    assert list_after.status_code == 200
+    assert list_after.json()["total"] == 0
+
+    # 7. Re-deleting revoked key returns 404
+    del_again = await async_client.delete(f"/api/v1/keys/{key_id}", headers=headers)
+    assert del_again.status_code == 404
+
+    # 8. Direct database verification: key retained with is_active=False and deleted_at!=None
+    key_db = (await async_db.exec(select(ApiKey).where(ApiKey.id == key_id))).first()
+    assert key_db is not None
+    assert key_db.is_active is False
+    assert key_db.deleted_at is not None
 
 
 # ==============================================================================
@@ -235,6 +251,21 @@ async def test_log_sources_crud_and_isolation(
     del_ok = await async_client.delete(f"/api/v1/sources/{source_id}", headers=headers_a)
     assert del_ok.status_code == 200
     assert del_ok.json()["source_id"] == source_id
+
+    # 6. Listing sources omits soft-deleted source
+    list_after = (await async_client.get("/api/v1/sources", headers=headers_a)).json()
+    assert list_after["total"] == 0
+
+    # 7. Re-deleting soft-deleted source returns 404
+    del_again = await async_client.delete(f"/api/v1/sources/{source_id}", headers=headers_a)
+    assert del_again.status_code == 404
+
+    # 8. Forensic database verification: row preserved with is_deleted=True, status=archived, deleted_at!=None
+    source_db = (await async_db.exec(select(LogSource).where(LogSource.id == source_id))).first()
+    assert source_db is not None
+    assert source_db.is_deleted is True
+    assert source_db.status == "archived"
+    assert source_db.deleted_at is not None
 
 
 @pytest.mark.asyncio
