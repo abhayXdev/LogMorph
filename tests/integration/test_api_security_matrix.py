@@ -8,6 +8,7 @@ Validates:
 5. Standardized 422 validation envelopes on malformed inputs.
 """
 
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -152,8 +153,9 @@ async def test_ingest_endpoint_invalid_or_revoked_api_key(
 async def test_cross_tenant_api_key_deletion_prevention(
     async_client: AsyncClient,
     async_db: AsyncSession,
+    caplog: pytest.LogCaptureFixture,
 ):
-    """Verify Tenant B cannot delete Tenant A's API key (returns 404 Not Found)."""
+    """Verify Tenant B cannot delete Tenant A's API key and IDOR telemetry warning is emitted."""
     user_a, token_a = await _create_test_user(async_db, "victim_key_a@corp.com")
     _, token_b = await _create_test_user(async_db, "attacker_key_b@corp.com")
 
@@ -171,11 +173,16 @@ async def test_cross_tenant_api_key_deletion_prevention(
     await async_db.refresh(api_key)
 
     # Tenant B tries to delete Tenant A's key
-    resp = await async_client.delete(
-        f"/api/v1/keys/{api_key.id}",
-        headers={"Authorization": f"Bearer {token_b}"},
-    )
+    with caplog.at_level(logging.WARNING, logger="logmorph.security"):
+        resp = await async_client.delete(
+            f"/api/v1/keys/{api_key.id}",
+            headers={"Authorization": f"Bearer {token_b}"},
+        )
     assert resp.status_code == 404
+    assert any(
+        getattr(r, "event_type", None) == "IDOR_PROBE" and getattr(r, "resource_type", None) == "ApiKey"
+        for r in caplog.records
+    )
 
     # Verify key is still present and active in DB
     key_in_db = await async_db.get(ApiKey, api_key.id)
@@ -187,8 +194,9 @@ async def test_cross_tenant_api_key_deletion_prevention(
 async def test_cross_tenant_source_deletion_prevention(
     async_client: AsyncClient,
     async_db: AsyncSession,
+    caplog: pytest.LogCaptureFixture,
 ):
-    """Verify Tenant B cannot delete Tenant A's Log Source (returns 404 Not Found)."""
+    """Verify Tenant B cannot delete Tenant A's Log Source and IDOR telemetry is emitted."""
     user_a, _ = await _create_test_user(async_db, "victim_source_a@corp.com")
     _, token_b = await _create_test_user(async_db, "attacker_source_b@corp.com")
 
@@ -203,11 +211,16 @@ async def test_cross_tenant_source_deletion_prevention(
     await async_db.refresh(source)
 
     # Tenant B tries to delete Tenant A's source
-    resp = await async_client.delete(
-        f"/api/v1/sources/{source.id}",
-        headers={"Authorization": f"Bearer {token_b}"},
-    )
+    with caplog.at_level(logging.WARNING, logger="logmorph.security"):
+        resp = await async_client.delete(
+            f"/api/v1/sources/{source.id}",
+            headers={"Authorization": f"Bearer {token_b}"},
+        )
     assert resp.status_code == 404
+    assert any(
+        getattr(r, "event_type", None) == "IDOR_PROBE" and getattr(r, "resource_type", None) == "LogSource"
+        for r in caplog.records
+    )
 
     # Verify source still exists
     source_in_db = await async_db.get(LogSource, source.id)
@@ -218,8 +231,9 @@ async def test_cross_tenant_source_deletion_prevention(
 async def test_cross_tenant_event_deletion_prevention(
     async_client: AsyncClient,
     async_db: AsyncSession,
+    caplog: pytest.LogCaptureFixture,
 ):
-    """Verify Tenant B cannot delete Tenant A's stored log event (returns 404 Not Found)."""
+    """Verify Tenant B cannot delete Tenant A's stored log event and IDOR telemetry is emitted."""
     user_a, _ = await _create_test_user(async_db, "victim_event_a@corp.com")
     _, token_b = await _create_test_user(async_db, "attacker_event_b@corp.com")
 
@@ -236,15 +250,67 @@ async def test_cross_tenant_event_deletion_prevention(
     await async_db.commit()
 
     # Tenant B tries to delete Tenant A's event
-    resp = await async_client.delete(
-        f"/api/v1/events/{event_id}",
-        headers={"Authorization": f"Bearer {token_b}"},
-    )
+    with caplog.at_level(logging.WARNING, logger="logmorph.security"):
+        resp = await async_client.delete(
+            f"/api/v1/events/{event_id}",
+            headers={"Authorization": f"Bearer {token_b}"},
+        )
     assert resp.status_code == 404
+    assert any(
+        getattr(r, "event_type", None) == "IDOR_PROBE" and getattr(r, "resource_type", None) == "LogRecord"
+        for r in caplog.records
+    )
 
     # Verify event still exists in DB
     event_in_db = await async_db.get(LogRecord, record.id)
     assert event_in_db is not None
+
+
+@pytest.mark.asyncio
+async def test_cross_tenant_event_read_probe_telemetry(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Verify reading another tenant's event returns 404 and emits IDOR_PROBE warning log."""
+    user_a, _ = await _create_test_user(async_db, "read_victim_a@corp.com")
+    _, token_b = await _create_test_user(async_db, "read_attacker_b@corp.com")
+
+    event_id = f"evt_read_target_{uuid.uuid4()}"
+    record = LogRecord(
+        event_id=event_id,
+        tenant_id=user_a.id,
+        timestamp=datetime.now(UTC),
+        raw_log="Secret Tenant A telemetry",
+        detected_format="json",
+        severity="HIGH",
+    )
+    async_db.add(record)
+    await async_db.commit()
+
+    # 1. Tenant B probes Tenant A's event ID
+    with caplog.at_level(logging.WARNING, logger="logmorph.security"):
+        resp = await async_client.get(
+            f"/api/v1/events/{event_id}",
+            headers={"Authorization": f"Bearer {token_b}"},
+        )
+    assert resp.status_code == 404
+    assert any(
+        getattr(r, "event_type", None) == "IDOR_PROBE"
+        and getattr(r, "resource_type", None) == "LogRecord"
+        and getattr(r, "action", None) == "READ"
+        for r in caplog.records
+    )
+
+    # 2. Probing a completely nonexistent UUID returns 404 without emitting IDOR_PROBE (no false positive)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="logmorph.security"):
+        fake_resp = await async_client.get(
+            f"/api/v1/events/evt_nonexistent_{uuid.uuid4()}",
+            headers={"Authorization": f"Bearer {token_b}"},
+        )
+    assert fake_resp.status_code == 404
+    assert not any(getattr(r, "event_type", None) == "IDOR_PROBE" for r in caplog.records)
 
 
 # ==============================================================================
