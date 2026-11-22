@@ -10,6 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.api.deps import get_current_tenant
+from logmorph.core.probe_limiter import record_404_and_check_limit
 from logmorph.core.telemetry import log_idor_probe
 from logmorph.db.models import LogSource, User
 from logmorph.db.session import get_session
@@ -157,6 +158,8 @@ async def delete_source(
                 actual_owner_tenant_id=global_source.tenant_id,
                 action="DELETE",
             )
+        # Track 404 probe cascade and throttle if > 20/min (FIX-P15)
+        await record_404_and_check_limit(tenant_id=user.id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Source not found",

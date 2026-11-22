@@ -31,3 +31,21 @@ class InvalidApiKeyException(APIException):
             error_code=error_code,
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+class TooManyProbesException(APIException):
+    """Raised when an authenticated tenant exceeds the 404 probe threshold (FIX-P15)."""
+
+    def __init__(
+        self,
+        detail: str = "Too many not-found requests. Try again in 60 seconds.",
+        error_code: str = "TOO_MANY_404_PROBES",
+        retry_after: int = 60,
+    ) -> None:
+        super().__init__(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=detail,
+            error_code=error_code,
+            headers={"Retry-After": str(retry_after)},
+        )
+
