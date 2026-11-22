@@ -24,7 +24,13 @@ class IngestRequest(BaseModel):
     @field_validator("raw_log")
     @classmethod
     def validate_raw_log_not_whitespace(cls, v: str) -> str:
-        """Ensure raw log is not purely whitespace."""
+        """Ensure raw log is not purely whitespace and sanitize NUL bytes.
+
+        PostgreSQL text columns cannot store ASCII 0x00 (NUL). Stripping NUL
+        bytes preserves log content for security and forensic indexing.
+        """
+        if "\x00" in v:
+            v = v.replace("\x00", "")
         if not v.strip():
             raise ValueError("raw_log must contain non-whitespace characters")
         return v
@@ -74,13 +80,18 @@ class BatchIngestRequest(BaseModel):
     @field_validator("logs")
     @classmethod
     def validate_logs_non_empty(cls, v: list[str]) -> list[str]:
-        """Validate that batch is not empty and each log entry has non-whitespace content."""
+        """Validate that batch is not empty, sanitize NUL bytes, and ensure non-whitespace content."""
         if not v:
             raise ValueError("logs batch must contain at least one log entry")
+        sanitized: list[str] = []
         for idx, item in enumerate(v):
-            if not isinstance(item, str) or not item.strip():
+            if not isinstance(item, str):
                 raise ValueError(f"Log at index {idx} must be a non-empty string")
-        return v
+            cleaned = item.replace("\x00", "") if "\x00" in item else item
+            if not cleaned.strip():
+                raise ValueError(f"Log at index {idx} must contain non-whitespace characters")
+            sanitized.append(cleaned)
+        return sanitized
 
 
 class BatchIngestResponse(BaseModel):

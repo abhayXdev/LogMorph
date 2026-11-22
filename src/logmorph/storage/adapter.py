@@ -79,12 +79,18 @@ def log_event_to_record(event: UniversalLogEvent) -> LogRecord:
     if event.source and event.source.name and "source_name" not in attrs:
         attrs["source_name"] = event.source.name
 
+    raw_log_cleaned = (
+        event.raw_log.replace("\x00", "")
+        if "\x00" in event.raw_log
+        else event.raw_log
+    )
+
     return LogRecord(
         tenant_id=event.tenant_id,
         event_id=event.event_id,
         timestamp=event.timestamp,
         ingested_at=event.ingested_at,
-        raw_log=event.raw_log,
+        raw_log=raw_log_cleaned,
         detected_format=fmt_str,
         severity=sev_str,
         action=event.action,
