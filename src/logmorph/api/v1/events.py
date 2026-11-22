@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -89,6 +89,18 @@ async def list_events(
     adapter: Annotated[PostgresStorageAdapter, Depends(get_storage_adapter)] = None,  # type: ignore[assignment]
 ) -> PaginatedEventsResponse:
     """List log events with deterministic pagination and multi-vector filtering."""
+    if start_time is not None and end_time is not None:
+        st = start_time if start_time.tzinfo is not None else start_time.replace(tzinfo=UTC)
+        et = end_time if end_time.tzinfo is not None else end_time.replace(tzinfo=UTC)
+        if st > et:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    "Temporal filter 'from' must be earlier than or equal to 'to'. "
+                    f"Received from={start_time.isoformat()} > to={end_time.isoformat()}"
+                ),
+            )
+
     offset = (page - 1) * limit
 
     sev_enum: SeverityEnum | None = None
