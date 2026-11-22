@@ -237,6 +237,45 @@ async def test_log_sources_crud_and_isolation(
     assert del_ok.json()["source_id"] == source_id
 
 
+@pytest.mark.asyncio
+async def test_log_sources_descending_created_at_ordering(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify that multiple log sources are returned strictly in created_at DESC order."""
+    _, token = await _create_test_tenant_user(async_db, email="sources_order@logmorph.io")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Register 3 sources sequentially
+    names = ["Collector Alpha", "Collector Beta", "Collector Gamma"]
+    created_ids = []
+    for name in names:
+        resp = await async_client.post(
+            "/api/v1/sources",
+            json={"name": name, "type": "SYSLOG", "description": f"Test for {name}"},
+            headers=headers,
+        )
+        assert resp.status_code == 201
+        created_ids.append(resp.json()["id"])
+
+    # Retrieve all sources
+    list_resp = await async_client.get("/api/v1/sources", headers=headers)
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    assert data["total"] == 3
+
+    sources = data["sources"]
+    # Newest created (Gamma) must be first, oldest (Alpha) must be last
+    assert sources[0]["name"] == "Collector Gamma"
+    assert sources[1]["name"] == "Collector Beta"
+    assert sources[2]["name"] == "Collector Alpha"
+
+    # Verify timestamp ordering explicitly
+    for i in range(len(sources) - 1):
+        assert sources[i]["created_at"] >= sources[i + 1]["created_at"]
+
+
+
 # ==============================================================================
 # 4. Tenant Security Analytics & Stats Tests
 # ==============================================================================
