@@ -12,7 +12,16 @@ class SandboxParseRequest(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    raw_log: str = Field(min_length=1, description="Raw log line to parse")
+    raw_log: str = Field(
+        min_length=1,
+        max_length=8192,
+        description="Raw log string to parse. Maximum 8192 characters.",
+    )
+    format_hint: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Optional format hint (e.g. SYSLOG, JSON, CEF).",
+    )
 
 
 class SandboxParseResponse(BaseModel):

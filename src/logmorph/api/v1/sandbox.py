@@ -5,8 +5,9 @@ from __future__ import annotations
 import time
 import uuid
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
+from logmorph.core.rate_limit import limiter
 from logmorph.engine.core import get_engine
 from logmorph.schemas.sandbox import SandboxParseRequest, SandboxParseResponse
 from logmorph.storage.adapter import log_event_to_record, record_to_event_item
@@ -21,7 +22,9 @@ router = APIRouter(prefix="/sandbox", tags=["Sandbox / Live Demo"])
     summary="Parse a raw log line interactively",
     description="Test arbitrary log lines through the 3-Tier Adaptive Cascade and Enrichment engine.",
 )
+@limiter.limit("30/minute")
 async def parse_sandbox_log(
+    request: Request,
     payload: SandboxParseRequest,
 ) -> SandboxParseResponse:
     """Execute live parsing cascade on candidate log string without storing."""

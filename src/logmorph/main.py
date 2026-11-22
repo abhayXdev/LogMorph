@@ -10,6 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
+from slowapi.errors import RateLimitExceeded
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -18,6 +19,7 @@ from logmorph.api.v1.auth import router as auth_router
 from logmorph.api.v1.router import api_v1_router
 from logmorph.config import settings
 from logmorph.core.exceptions import APIException
+from logmorph.core.rate_limit import limiter
 from logmorph.db.session import get_session, init_db
 from logmorph.queue.producer import LogMorphKafkaProducer, get_kafka_producer, kafka_producer
 
@@ -60,6 +62,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+app.state.limiter = limiter
 
 # CORS Middleware
 app.add_middleware(
@@ -144,6 +147,23 @@ async def request_validation_exception_handler(
             "error_code": "VALIDATION_ERROR",
             "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT,
         },
+    )
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(
+    request: Request,
+    exc: RateLimitExceeded,
+) -> JSONResponse:
+    """Handle slowapi rate limit exceeded exceptions with standardized contract."""
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={
+            "detail": f"Rate limit exceeded: {exc.detail}",
+            "error_code": "RATE_LIMIT_EXCEEDED",
+            "status_code": status.HTTP_429_TOO_MANY_REQUESTS,
+        },
+        headers={"Retry-After": "60"},
     )
 
 
