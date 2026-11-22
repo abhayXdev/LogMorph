@@ -1,5 +1,8 @@
 """Integration tests for REST API Ingestion webhooks and health endpoints."""
 
+import gzip
+import json
+
 import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -331,3 +334,102 @@ async def test_single_log_pure_nul_byte_rejected(
     data = response.json()
     assert data["status_code"] == 422
     assert data["error_code"] == "VALIDATION_ERROR"
+
+
+# ==============================================================================
+# 5. Gzip Compressed Ingestion & Traversal Signature Tests (FIX-P7)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_single_log_ingest_with_gzip_encoding_and_traversal_payload(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify gzip-compressed request containing directory traversal attack logs is accepted."""
+    _, raw_key, _ = await _create_test_tenant_and_key(
+        async_db, email="gzip_collector@corp.com"
+    )
+
+    payload = {
+        "raw_log": "../../etc/passwd attempted by root with /../../../bin/bash",
+        "source": "ids-sensor",
+    }
+    compressed = gzip.compress(json.dumps(payload).encode("utf-8"))
+    headers = {
+        "Authorization": f"Bearer {raw_key}",
+        "Content-Encoding": "gzip",
+        "Content-Type": "application/json",
+    }
+
+    response = await async_client.post(
+        "/api/v1/ingest",
+        content=compressed,
+        headers=headers,
+    )
+    assert response.status_code == 202
+    data = response.json()
+    assert data["status"] == "accepted"
+    assert data["event_id"].startswith("evt_")
+
+
+@pytest.mark.asyncio
+async def test_batch_log_ingest_with_gzip_encoding(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify batch ingestion accepts gzip-compressed payloads."""
+    _, raw_key, _ = await _create_test_tenant_and_key(
+        async_db, email="gzip_batch@corp.com"
+    )
+
+    payload = {
+        "logs": [
+            "attack vector 1: ../../windows/system32/cmd.exe",
+            "attack vector 2: /../../../../etc/shadow probe",
+        ]
+    }
+    compressed = gzip.compress(json.dumps(payload).encode("utf-8"))
+    headers = {
+        "Authorization": f"Bearer {raw_key}",
+        "Content-Encoding": "gzip",
+        "Content-Type": "application/json",
+    }
+
+    response = await async_client.post(
+        "/api/v1/ingest/batch",
+        content=compressed,
+        headers=headers,
+    )
+    assert response.status_code == 202
+    data = response.json()
+    assert data["status"] == "accepted"
+    assert data["count"] == 2
+    assert len(data["event_ids"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_corrupted_gzip_payload_returns_400(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify invalid gzip data with Content-Encoding: gzip returns 400 Bad Request."""
+    _, raw_key, _ = await _create_test_tenant_and_key(
+        async_db, email="corrupt_gzip@corp.com"
+    )
+
+    headers = {
+        "Authorization": f"Bearer {raw_key}",
+        "Content-Encoding": "gzip",
+        "Content-Type": "application/json",
+    }
+
+    response = await async_client.post(
+        "/api/v1/ingest",
+        content=b"not-valid-gzip-header",
+        headers=headers,
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert data["status_code"] == 400
+    assert data["error_code"] == "GZIP_DECODE_ERROR"
