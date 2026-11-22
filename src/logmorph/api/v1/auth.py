@@ -7,12 +7,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.api.deps import get_current_tenant
 from logmorph.core.email import get_email_service, hash_token
+from logmorph.core.rate_limit import limiter
 from logmorph.core.security import (
     create_access_token,
     decode_access_token,
@@ -161,10 +162,16 @@ async def signup(
             "model": ErrorResponse,
             "description": "Invalid credentials",
         },
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "model": ErrorResponse,
+            "description": "Too many failed attempts. Rate limit exceeded.",
+        },
     },
     summary="Login with existing credentials",
 )
+@limiter.limit("10/minute")
 async def login(
+    request: Request,
     payload: UserLoginRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AuthResponse:
@@ -341,7 +348,9 @@ async def verify_email(
     response_model=dict[str, str],
     summary="Resend verification email link",
 )
+@limiter.limit("5/minute")
 async def resend_verification(
+    request: Request,
     payload: ResendVerificationRequest,
     background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -377,7 +386,9 @@ async def resend_verification(
     response_model=ForgotPasswordResponse,
     summary="Request password recovery link",
 )
+@limiter.limit("5/minute")
 async def forgot_password(
+    request: Request,
     payload: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
