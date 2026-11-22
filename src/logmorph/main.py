@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from logmorph.api.v1.auth import router as auth_router
 from logmorph.api.v1.router import api_v1_router
@@ -85,8 +86,12 @@ async def custom_api_exception_handler(request: Request, exc: APIException) -> J
     )
 
 
+@app.exception_handler(StarletteHTTPException)
 @app.exception_handler(HTTPException)
-async def general_http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+async def general_http_exception_handler(
+    request: Request,
+    exc: StarletteHTTPException | HTTPException,
+) -> JSONResponse:
     """Handle standard HTTP exceptions formatted to API contract."""
     error_code = getattr(exc, "error_code", None)
     if not error_code:
@@ -95,10 +100,16 @@ async def general_http_exception_handler(request: Request, exc: HTTPException) -
             401: "UNAUTHORIZED",
             403: "FORBIDDEN",
             404: "NOT_FOUND",
+            405: "METHOD_NOT_ALLOWED",
+            408: "REQUEST_TIMEOUT",
             409: "CONFLICT",
+            415: "UNSUPPORTED_MEDIA_TYPE",
             422: "VALIDATION_ERROR",
             429: "RATE_LIMIT_EXCEEDED",
             500: "INTERNAL_SERVER_ERROR",
+            502: "BAD_GATEWAY",
+            503: "SERVICE_UNAVAILABLE",
+            504: "GATEWAY_TIMEOUT",
         }
         error_code = status_code_map.get(exc.status_code, "HTTP_ERROR")
 
