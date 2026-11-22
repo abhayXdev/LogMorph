@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from sqlalchemy import Index
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -135,6 +136,9 @@ class LogSource(LogSourceBase, table=True):
     """Database model for a Log Source collector registry."""
 
     __tablename__ = "log_sources"  # type: ignore
+    __table_args__ = (
+        Index("ix_log_sources_tenant_created_at_desc", "tenant_id", "created_at"),
+    )
 
     id: str = Field(
         default_factory=lambda: f"src_{uuid.uuid4().hex[:12]}",

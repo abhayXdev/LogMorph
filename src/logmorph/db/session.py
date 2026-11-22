@@ -5,6 +5,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import dns.resolver
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
@@ -81,6 +82,13 @@ async def init_db() -> None:
     try:
         async with engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
+            # Ensure composite index on log_sources exists on pre-existing databases (FIX-P17)
+            await conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_log_sources_tenant_created_at_desc "
+                    "ON log_sources (tenant_id, created_at DESC)"
+                )
+            )
             logger.info("Database initialized successfully.")
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
