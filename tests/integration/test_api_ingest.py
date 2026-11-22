@@ -49,6 +49,39 @@ async def test_health_check_endpoint(async_client: AsyncClient):
     assert data["version"] == "0.1.0"
     assert "uptime_seconds" in data
     assert isinstance(data["uptime_seconds"], int)
+    assert "cached" in data
+
+
+@pytest.mark.asyncio
+async def test_health_check_caching_eliminates_connection_burst(async_client: AsyncClient):
+    """Verify consecutive GET /health requests within 5s are served from cache (FIX-P3)."""
+    # First request: establishes cache
+    r1 = await async_client.get("/health")
+    assert r1.status_code == 200
+
+    # Second request immediately after: MUST be served from cache
+    r2 = await async_client.get("/health")
+    assert r2.status_code == 200
+    data2 = r2.json()
+    assert data2["cached"] is True
+    assert data2["database"] == "connected"
+    assert data2["status"] in ("healthy", "degraded")
+
+
+@pytest.mark.asyncio
+async def test_health_check_concurrent_burst_safety(async_client: AsyncClient):
+    """Verify concurrent burst of 20 health check requests all succeed without pool exhaustion."""
+    import asyncio
+
+    tasks = [async_client.get("/health") for _ in range(20)]
+    responses = await asyncio.gather(*tasks)
+
+    for r in responses:
+        assert r.status_code == 200
+        assert "status" in r.json()
+
+    cached_count = sum(1 for r in responses if r.json().get("cached") is True)
+    assert cached_count >= 1
 
 
 @pytest.mark.asyncio
