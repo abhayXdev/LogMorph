@@ -22,6 +22,7 @@ from logmorph.config import settings
 from logmorph.core.exceptions import APIException
 from logmorph.core.rate_limit import limiter
 from logmorph.db.session import get_session, init_db
+from logmorph.middleware.gzip_request import GzipRequestMiddleware
 from logmorph.queue.producer import LogMorphKafkaProducer, get_kafka_producer, kafka_producer
 
 logger = logging.getLogger(__name__)
@@ -78,6 +79,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Gzip Request Body Decompression Middleware (FIX-P7)
+app.add_middleware(GzipRequestMiddleware)
 
 
 # Exception Handlers matching API_CONTRACT.md error response format
