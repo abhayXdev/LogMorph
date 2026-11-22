@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -63,6 +63,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 )
 async def signup(
     payload: UserSignupRequest,
+    background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AuthResponse:
     """Create a new user account and dispatch verification email."""
@@ -80,10 +81,11 @@ async def signup(
             await session.commit()
 
             email_service = get_email_service()
-            await email_service.send_verification_email(
-                to_email=existing_user.email,
-                full_name=existing_user.full_name,
-                raw_token=raw_token,
+            background_tasks.add_task(
+                email_service.send_verification_email,
+                existing_user.email,
+                existing_user.full_name,
+                raw_token,
             )
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -115,10 +117,11 @@ async def signup(
 
     # 4. Dispatch verification email in background
     email_service = get_email_service()
-    await email_service.send_verification_email(
-        to_email=user.email,
-        full_name=user.full_name,
-        raw_token=raw_token,
+    background_tasks.add_task(
+        email_service.send_verification_email,
+        user.email,
+        user.full_name,
+        raw_token,
     )
 
     # 5. Issue JWT token
@@ -340,6 +343,7 @@ async def verify_email(
 )
 async def resend_verification(
     payload: ResendVerificationRequest,
+    background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, str]:
     """Dispatch a fresh verification link if account is unverified."""
@@ -355,10 +359,11 @@ async def resend_verification(
         await session.commit()
 
         email_service = get_email_service()
-        await email_service.send_verification_email(
-            to_email=user.email,
-            full_name=user.full_name,
-            raw_token=raw_token,
+        background_tasks.add_task(
+            email_service.send_verification_email,
+            user.email,
+            user.full_name,
+            raw_token,
         )
 
     return {
@@ -374,6 +379,7 @@ async def resend_verification(
 )
 async def forgot_password(
     payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ForgotPasswordResponse:
     """Issue password reset token with anti-enumeration protection."""
@@ -389,10 +395,11 @@ async def forgot_password(
         await session.commit()
 
         email_service = get_email_service()
-        await email_service.send_password_reset_email(
-            to_email=user.email,
-            full_name=user.full_name,
-            raw_token=raw_token,
+        background_tasks.add_task(
+            email_service.send_password_reset_email,
+            user.email,
+            user.full_name,
+            raw_token,
         )
 
     return ForgotPasswordResponse(
@@ -418,6 +425,7 @@ async def forgot_password(
 )
 async def reset_password(
     payload: ResetPasswordRequest,
+    background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ResetPasswordResponse:
     """Validate recovery token and update account password."""
@@ -445,9 +453,10 @@ async def reset_password(
     await session.commit()
 
     email_service = get_email_service()
-    await email_service.send_password_changed_notification(
-        to_email=user.email,
-        full_name=user.full_name,
+    background_tasks.add_task(
+        email_service.send_password_changed_notification,
+        user.email,
+        user.full_name,
     )
 
     return ResetPasswordResponse(
@@ -473,6 +482,7 @@ async def reset_password(
 )
 async def change_password(
     payload: ChangePasswordRequest,
+    background_tasks: BackgroundTasks,
     user: Annotated[User, Depends(get_current_tenant)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ChangePasswordResponse:
@@ -491,9 +501,10 @@ async def change_password(
     await session.commit()
 
     email_service = get_email_service()
-    await email_service.send_password_changed_notification(
-        to_email=user.email,
-        full_name=user.full_name,
+    background_tasks.add_task(
+        email_service.send_password_changed_notification,
+        user.email,
+        user.full_name,
     )
 
     return ChangePasswordResponse(message="Password updated successfully")

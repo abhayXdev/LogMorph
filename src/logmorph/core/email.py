@@ -34,16 +34,17 @@ def _build_professional_email_html(
     lead_text: str,
     cta_text: str | None = None,
     cta_url: str | None = None,
-    cta_color: str = "#863bff",
+    cta_color: str = "#590907",
     direct_link_label: str | None = None,
     expiry_notice: str | None = None,
     security_footer: str | None = None,
 ) -> str:
     """Generate a clean, modern, enterprise-grade transactional HTML email.
 
-    Styled after Linear, Stripe, and Vercel: clean white card on subtle canvas,
-    brand purple polygon icon from the frontend design system, accessible typography,
-    and responsive dark-mode support without AI/robotic buzzwords.
+    Branded with LogMorph's refined visual palette:
+    - Deep Burgundy: #590907 (brand header, primary CTA, headlines)
+    - Warm Cream Beige: #E8D2B5 (card borders, dividers, subtle accents)
+    - Muted Sage Grey: #A5A79B (metadata, security notes, subtext)
     """
     first_name = recipient_name.strip().split()[0] if recipient_name else "there"
 
@@ -53,7 +54,7 @@ def _build_professional_email_html(
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0; width: 100%;">
             <tr>
                 <td align="center">
-                    <a href="{cta_url}" target="_blank" style="display: inline-block; background-color: {cta_color}; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 13px 32px; border-radius: 8px; box-shadow: 0 4px 14px rgba(134, 59, 255, 0.28); letter-spacing: -0.01em;">
+                    <a href="{cta_url}" target="_blank" style="display: inline-block; background-color: {cta_color}; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 13px 32px; border-radius: 8px; box-shadow: 0 4px 14px rgba(89, 9, 7, 0.28); letter-spacing: -0.01em;">
                         {cta_text} &rarr;
                     </a>
                 </td>
@@ -65,20 +66,22 @@ def _build_professional_email_html(
     if cta_url:
         label = direct_link_label or "If the button above doesn't work, copy and paste this link into your browser:"
         direct_link_block = f"""
-        <p style="margin: 0 0 8px 0; font-size: 13px; line-height: 1.5; color: #64748b;">
+        <p style="margin: 0 0 8px 0; font-size: 13px; line-height: 1.5; color: #78716c;">
             {label}
         </p>
         <p style="margin: 0 0 24px 0; font-size: 12px; line-height: 1.5; word-break: break-all;">
-            <a href="{cta_url}" style="color: #863bff; text-decoration: underline;">{cta_url}</a>
+            <a href="{cta_url}" style="color: #590907; text-decoration: underline; font-weight: 500;">{cta_url}</a>
         </p>
         """
 
     expiry_block = ""
     if expiry_notice:
         expiry_block = f"""
-        <p style="margin: 0 0 16px 0; font-size: 13px; line-height: 1.5; color: #64748b;">
-            {expiry_notice}
-        </p>
+        <div style="background-color: #FAF6F0; border-left: 3px solid #590907; border-top: 1px solid #E8D2B5; border-right: 1px solid #E8D2B5; border-bottom: 1px solid #E8D2B5; border-radius: 6px; padding: 12px 16px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #590907; font-weight: 500;">
+                {expiry_notice}
+            </p>
+        </div>
         """
 
     security_note = security_footer or (
@@ -102,22 +105,22 @@ def _build_professional_email_html(
     <![endif]-->
     <style>
         @media (prefers-color-scheme: dark) {{
-            body, .bg-canvas {{ background-color: #070b14 !important; }}
-            .email-card {{ background-color: #0f172a !important; border-color: #1e293b !important; }}
-            .text-title {{ color: #f8fafc !important; }}
-            .text-body {{ color: #cbd5e1 !important; }}
-            .text-muted {{ color: #94a3b8 !important; }}
-            .text-sub {{ color: #64748b !important; }}
-            .card-divider {{ background-color: #1e293b !important; }}
+            body, .bg-canvas {{ background-color: #161311 !important; }}
+            .email-card {{ background-color: #201B19 !important; border-color: #3D302C !important; }}
+            .text-title {{ color: #F5EBE1 !important; }}
+            .text-body {{ color: #D6CCC2 !important; }}
+            .text-muted {{ color: #A5A79B !important; }}
+            .text-sub {{ color: #8F8C81 !important; }}
+            .card-divider {{ background-color: #3D302C !important; }}
         }}
     </style>
 </head>
-<body class="bg-canvas" style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-    <div style="display: none; font-size: 1px; color: #f8fafc; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+<body class="bg-canvas" style="margin: 0; padding: 0; background-color: #FAF6F0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    <div style="display: none; font-size: 1px; color: #FAF6F0; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
         {preheader} &zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
     </div>
 
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="bg-canvas" style="background-color: #f8fafc; padding: 48px 16px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="bg-canvas" style="background-color: #FAF6F0; padding: 48px 16px;">
         <tr>
             <td align="center">
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 520px;">
@@ -126,36 +129,44 @@ def _build_professional_email_html(
                         <td align="center" style="padding-bottom: 28px;">
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                                 <tr>
-                                    <td valign="middle" style="padding-right: 10px;">
+                                    <td valign="middle" style="padding-right: 12px;">
                                         <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                                             <tr>
-                                                <td align="center" valign="middle" style="width: 36px; height: 36px; background: linear-gradient(135deg, #863bff 0%, #7e14ff 50%, #47bfff 100%); border-radius: 9px; box-shadow: 0 4px 12px rgba(134, 59, 255, 0.25);">
-                                                    <img src="{LOGMORPH_ICON_URL}" width="22" height="22" alt="LogMorph" style="display: block; border: 0;" />
+                                                <td align="center" valign="middle" style="width: 38px; height: 38px; background-color: #590907; border-radius: 10px; box-shadow: 0 4px 12px rgba(89, 9, 7, 0.28);">
+                                                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                                                        <path d="M2.84 4.58H7.24C7.8 4.58 8.25 5.04 8.25 5.59C8.25 6.15 7.8 6.6 7.24 6.6H2.84C2.29 6.6 1.83 6.15 1.83 5.59C1.83 5.04 2.29 4.58 2.84 4.58Z" fill="#E8D2B5"/>
+                                                        <path d="M2.84 9.99H5.41C5.97 9.99 6.42 10.44 6.42 11C6.42 11.56 5.96 12.01 5.41 12.01H2.84C2.29 12.01 1.83 11.56 1.83 11C1.83 10.44 2.29 9.99 2.84 9.99Z" fill="#A5A79B"/>
+                                                        <path d="M2.84 15.4H8.16C8.71 15.4 9.17 15.85 9.17 16.41C9.17 16.96 8.71 17.42 8.16 17.42H2.84C2.29 17.42 1.83 16.96 1.83 16.41C1.83 15.85 2.29 15.4 2.84 15.4Z" fill="#E8D2B5"/>
+                                                        <path d="M9.625 7.79L12.375 11L9.625 14.21" stroke-width="1.83" stroke-linecap="round" stroke-linejoin="round" stroke="#ffffff"/>
+                                                        <path d="M15.22 4.58H19.16C19.71 4.58 20.17 5.04 20.17 5.59C20.17 6.15 19.71 6.6 19.16 6.6H15.22C14.66 6.6 14.21 6.15 14.21 5.59C14.21 5.04 14.66 4.58 15.22 4.58Z" fill="#ffffff"/>
+                                                        <path d="M15.22 9.99H19.16C19.71 9.99 20.17 10.44 20.17 11C20.17 11.56 19.71 12.01 19.16 12.01H15.22C14.66 12.01 14.21 11.56 14.21 11C14.21 10.44 14.66 9.99 15.22 9.99Z" fill="#E8D2B5"/>
+                                                        <path d="M15.22 15.4H19.16C19.71 15.4 20.17 15.85 20.17 16.41C20.17 16.96 19.71 17.42 19.16 17.42H15.22C14.66 17.42 14.21 16.96 14.21 16.41C14.21 15.85 14.66 15.4 15.22 15.4Z" fill="#ffffff"/>
+                                                    </svg>
                                                 </td>
                                             </tr>
                                         </table>
                                     </td>
                                     <td valign="middle">
-                                        <span class="text-title" style="font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: #0f172a;">LogMorph</span>
+                                        <span class="text-title" style="font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: #590907;">LogMorph</span>
                                     </td>
                                 </tr>
                             </table>
                         </td>
                     </tr>
 
-                    <!-- Main White / Dark Card -->
+                    <!-- Main Card -->
                     <tr>
                         <td>
-                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="email-card" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 40px 36px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);">
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="email-card" style="background-color: #ffffff; border: 1px solid #E8D2B5; border-radius: 12px; padding: 40px 36px; box-shadow: 0 4px 16px rgba(89, 9, 7, 0.05);">
                                 <tr>
                                     <td>
-                                        <h1 class="text-title" style="margin: 0 0 16px 0; font-size: 20px; font-weight: 700; color: #0f172a; letter-spacing: -0.02em;">
+                                        <h1 class="text-title" style="margin: 0 0 16px 0; font-size: 20px; font-weight: 700; color: #590907; letter-spacing: -0.02em;">
                                             {headline}
                                         </h1>
-                                        <p class="text-body" style="margin: 0 0 14px 0; font-size: 15px; line-height: 1.6; color: #334155;">
+                                        <p class="text-body" style="margin: 0 0 14px 0; font-size: 15px; line-height: 1.6; color: #2D2321;">
                                             Hi {first_name},
                                         </p>
-                                        <p class="text-body" style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: #334155;">
+                                        <p class="text-body" style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: #2D2321;">
                                             {lead_text}
                                         </p>
                                         {button_block}
@@ -163,9 +174,9 @@ def _build_professional_email_html(
                                         {direct_link_block}
 
                                         <!-- Card Divider -->
-                                        <div class="card-divider" style="height: 1px; background-color: #f1f5f9; width: 100%; margin: 24px 0 20px 0;"></div>
+                                        <div class="card-divider" style="height: 1px; background-color: #E8D2B5; width: 100%; margin: 24px 0 20px 0;"></div>
 
-                                        <p class="text-sub" style="margin: 0; font-size: 12px; line-height: 1.5; color: #94a3b8;">
+                                        <p class="text-sub" style="margin: 0; font-size: 12px; line-height: 1.5; color: #A5A79B;">
                                             {security_note}
                                         </p>
                                     </td>
@@ -174,13 +185,13 @@ def _build_professional_email_html(
                         </td>
                     </tr>
 
-                    <!-- Subtle Footer -->
+                    <!-- Footer -->
                     <tr>
                         <td align="center" style="padding-top: 24px;">
-                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #94a3b8;">
+                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #A5A79B;">
                                 LogMorph, Inc. &bull; Real-Time Log Pipeline & Security Analytics
                             </p>
-                            <p style="margin: 0; font-size: 11px; color: #cbd5e1;">
+                            <p style="margin: 0; font-size: 11px; color: #C4BEB5;">
                                 &copy; 2026 LogMorph, Inc. All rights reserved.
                             </p>
                         </td>
@@ -384,7 +395,7 @@ class EmailService:
             lead_text="Thanks for signing up for LogMorph. Please confirm your email address by clicking the button below to activate your account and access your dashboard:",
             cta_text="Verify email address",
             cta_url=verification_url,
-            cta_color="#863bff",
+            cta_color="#590907",
             expiry_notice="This link will expire in 24 hours.",
             security_footer="If you didn't create an account with LogMorph, you can safely ignore this email.",
         )
@@ -424,7 +435,7 @@ class EmailService:
             lead_text="We received a request to reset the password for your LogMorph account. Click the button below to choose a new password:",
             cta_text="Reset password",
             cta_url=reset_url,
-            cta_color="#863bff",
+            cta_color="#590907",
             expiry_notice="This single-use link will expire in 15 minutes.",
             security_footer="If you didn't request a password reset, you can safely ignore this email. Your account remains secure.",
         )
