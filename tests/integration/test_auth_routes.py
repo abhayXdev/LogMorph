@@ -384,3 +384,72 @@ async def test_change_password_flow(
     new_me_resp = await async_client.get("/auth/me", headers=new_headers)
     assert new_me_resp.status_code == 200
     assert new_me_resp.json()["email"] == user.email
+
+
+# ==============================================================================
+# 5. Rate Limiting Tests (FIX-P1)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_login_rate_limiting_enforced_429(
+    async_client: AsyncClient,
+):
+    """Verify rapid failed login attempts trigger HTTP 429 after 10 attempts (FIX-P1)."""
+    client_ip = "198.51.100.77"
+    headers = {"X-Forwarded-For": client_ip}
+
+    statuses = []
+    for i in range(13):
+        resp = await async_client.post(
+            "/auth/login",
+            json={"email": "attacker@bruteforce.com", "password": f"WrongPass{i}"},
+            headers=headers,
+        )
+        statuses.append(resp.status_code)
+        if resp.status_code == 429:
+            data = resp.json()
+            assert data["status_code"] == 429
+            assert data["error_code"] == "RATE_LIMIT_EXCEEDED"
+            assert "Retry-After" in resp.headers
+
+    assert 429 in statuses, f"Expected 429 Too Many Requests in 13 attempts, got {statuses}"
+
+
+@pytest.mark.asyncio
+async def test_login_rate_limiting_per_ip_isolation(
+    async_client: AsyncClient,
+):
+    """Verify rate limit on one IP does not block a distinct client IP."""
+    headers_b = {"X-Forwarded-For": "198.51.100.78"}
+    resp = await async_client.post(
+        "/auth/login",
+        json={"email": "other@domain.com", "password": "WrongPassword"},
+        headers=headers_b,
+    )
+    # Distinct IP must get normal 401 response, not 429
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_rate_limiting_enforced_429(
+    async_client: AsyncClient,
+):
+    """Verify rapid forgot-password requests trigger HTTP 429 after 5 attempts."""
+    client_ip = "198.51.100.88"
+    headers = {"X-Forwarded-For": client_ip}
+
+    statuses = []
+    for _ in range(7):
+        resp = await async_client.post(
+            "/auth/forgot-password",
+            json={"email": "victim@example.com"},
+            headers=headers,
+        )
+        statuses.append(resp.status_code)
+        if resp.status_code == 429:
+            data = resp.json()
+            assert data["status_code"] == 429
+            assert data["error_code"] == "RATE_LIMIT_EXCEEDED"
+
+    assert 429 in statuses, f"Expected 429 in 7 attempts, got {statuses}"
