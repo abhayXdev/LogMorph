@@ -50,12 +50,22 @@ def _prepare_db_connection(raw_url: str) -> tuple[str, dict[str, Any]]:
 
 db_url, connect_args = _prepare_db_connection(settings.DATABASE_URL)
 
-# Create the async engine
+engine_kwargs: dict[str, Any] = {
+    "echo": settings.ENVIRONMENT == "development",
+    "future": True,
+    "connect_args": connect_args,
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
+
+if "postgresql" in db_url:
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 5
+
+# Create the async engine with idle resilience (pre-ping & auto-recycle)
 engine = create_async_engine(
     db_url,
-    echo=settings.ENVIRONMENT == "development",
-    future=True,
-    connect_args=connect_args,
+    **engine_kwargs,
 )
 
 # Async session factory
