@@ -82,15 +82,22 @@ async def init_db() -> None:
     try:
         async with engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
-            # Ensure composite index on log_sources exists on pre-existing databases (FIX-P17)
-            await conn.execute(
-                text(
-                    "CREATE INDEX IF NOT EXISTS ix_log_sources_tenant_created_at_desc "
-                    "ON log_sources (tenant_id, created_at DESC)"
-                )
-            )
-            # Ensure soft-deletion tombstone columns exist on pre-existing databases (FIX-P16)
+
             if "postgresql" in str(conn.engine.url):
+                # Acquire transaction-level advisory lock to serialize DDL across multi-worker startups
+                lock_res = await conn.execute(text("SELECT pg_try_advisory_xact_lock(2026112201);"))
+                if not lock_res.scalar():
+                    logger.info("Database migration lock held by another worker; skipping DDL initialization.")
+                    return
+
+                # Ensure composite index on log_sources exists on pre-existing databases (FIX-P17)
+                await conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_log_sources_tenant_created_at_desc "
+                        "ON log_sources (tenant_id, created_at DESC);"
+                    )
+                )
+                # Ensure soft-deletion tombstone columns exist on pre-existing databases (FIX-P16)
                 await conn.execute(
                     text("ALTER TABLE log_records ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;")
                 )
@@ -111,6 +118,14 @@ async def init_db() -> None:
                 )
                 await conn.execute(
                     text("ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;")
+                )
+            else:
+                # SQLite fallback for test suites and local development
+                await conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_log_sources_tenant_created_at_desc "
+                        "ON log_sources (tenant_id, created_at DESC);"
+                    )
                 )
             logger.info("Database initialized successfully.")
     except Exception as e:

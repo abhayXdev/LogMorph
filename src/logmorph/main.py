@@ -178,8 +178,9 @@ async def rate_limit_exceeded_handler(
 
 
 # Health Check Endpoint (API Contract Section 8)
-@app.get(
+@app.api_route(
     "/health",
+    methods=["GET", "HEAD"],
     status_code=status.HTTP_200_OK,
     tags=["System Health"],
     summary="System health status",
@@ -283,7 +284,7 @@ async def health_check(
     return result
 
 
-@app.get("/", include_in_schema=False)
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 async def root_redirect() -> RedirectResponse:
     """Redirect root path to interactive Swagger documentation."""
     return RedirectResponse(url="/docs")
