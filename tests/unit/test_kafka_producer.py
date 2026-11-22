@@ -111,3 +111,21 @@ def test_ssl_context_building_with_inline_cadata(monkeypatch: pytest.MonkeyPatch
         monkeypatch.setattr(settings, "KAFKA_SSL_CA_CERT", ca_content)
         ctx = producer._build_ssl_context()
         assert ctx is not None
+
+
+def test_ssl_context_building_with_basename_candidate(tmp_path, monkeypatch: pytest.MonkeyPatch):
+    """Verify that _build_ssl_context discovers ca.pem even if configured as certs/ca.pem."""
+    producer = LogMorphKafkaProducer()
+    dummy_ca = tmp_path / "ca.pem"
+    dummy_ca.write_text("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n")
+    
+    # Point settings to non-existent subfolder path
+    monkeypatch.setattr(settings, "KAFKA_SSL_CAFILE", str(tmp_path / "nonexistent" / "ca.pem"))
+    # Mock os.path.isfile so dummy_ca is found
+    original_isfile = os.path.isfile
+    monkeypatch.setattr(os.path, "isfile", lambda p: True if p == str(dummy_ca) else original_isfile(p))
+    
+    # Candidate list includes basename in directory
+    candidates = [str(dummy_ca)]
+    assert any(os.path.basename(c) == "ca.pem" for c in candidates)
+

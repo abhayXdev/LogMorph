@@ -45,16 +45,36 @@ class LogMorphKafkaProducer:
             return None
 
         cafile = settings.KAFKA_SSL_CAFILE
-        # Verify cafile exists on filesystem if configured
-        if cafile and not os.path.exists(cafile):
-            alt_path = os.path.join(os.getcwd(), cafile)
-            if os.path.exists(alt_path):
-                cafile = alt_path
-            else:
-                logger.warning("Configured KAFKA_SSL_CAFILE not found: %s", cafile)
-                cafile = None
+        resolved_ca: str | None = None
+        candidates: list[str] = []
+        if cafile:
+            candidates.extend([
+                cafile,
+                os.path.join(os.getcwd(), cafile),
+                os.path.basename(cafile),
+                os.path.join(os.getcwd(), os.path.basename(cafile)),
+                os.path.join("/etc/secrets", os.path.basename(cafile)),
+            ])
+        # Always check common production/Render secret file locations
+        candidates.extend([
+            "/etc/secrets/ca.pem",
+            "ca.pem",
+            os.path.join(os.getcwd(), "ca.pem"),
+            "certs/ca.pem",
+            os.path.join(os.getcwd(), "certs", "ca.pem"),
+        ])
 
-        ssl_context = ssl.create_default_context(cafile=cafile)
+        for path in candidates:
+            if path and os.path.isfile(path):
+                resolved_ca = path
+                break
+
+        if cafile and not resolved_ca:
+            logger.warning("Configured KAFKA_SSL_CAFILE not found: %s", cafile)
+        elif resolved_ca:
+            logger.info("Using Kafka CA certificate from: %s", resolved_ca)
+
+        ssl_context = ssl.create_default_context(cafile=resolved_ca)
 
         # Allow passing inline CA certificate string (e.g. for cloud/HuggingFace/Render secrets)
         if settings.KAFKA_SSL_CA_CERT:
