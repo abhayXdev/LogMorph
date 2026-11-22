@@ -10,6 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.api.deps import get_current_tenant
+from logmorph.core.telemetry import log_idor_probe
 from logmorph.db.models import LogSource, User
 from logmorph.db.session import get_session
 from logmorph.schemas.errors import ErrorResponse
@@ -142,6 +143,20 @@ async def delete_source(
     source = res.first()
 
     if not source:
+        # Check if source exists globally under another tenant (IDOR probe telemetry - FIX-P14)
+        global_stmt = select(LogSource).where(
+            LogSource.id == source_id,
+            LogSource.is_deleted.is_(False),
+        )
+        global_source = (await session.exec(global_stmt)).first()
+        if global_source and global_source.tenant_id != user.id:
+            log_idor_probe(
+                resource_type="LogSource",
+                resource_id=source_id,
+                requesting_tenant_id=user.id,
+                actual_owner_tenant_id=global_source.tenant_id,
+                action="DELETE",
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Source not found",

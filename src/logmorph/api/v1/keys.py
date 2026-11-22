@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.api.deps import get_current_tenant
 from logmorph.core.keys import generate_api_key
+from logmorph.core.telemetry import log_idor_probe
 from logmorph.db.models import ApiKey, User
 from logmorph.db.session import get_session
 from logmorph.schemas.auth import ApiKeyCreateRequest
@@ -133,6 +134,20 @@ async def revoke_key(
     key = res.first()
 
     if not key:
+        # Check if key exists globally under another tenant (IDOR probe telemetry - FIX-P14)
+        global_stmt = select(ApiKey).where(
+            ApiKey.id == key_id,
+            ApiKey.deleted_at.is_(None),
+        )
+        global_key = (await session.exec(global_stmt)).first()
+        if global_key and global_key.user_id != user.id:
+            log_idor_probe(
+                resource_type="ApiKey",
+                resource_id=key_id,
+                requesting_tenant_id=user.id,
+                actual_owner_tenant_id=global_key.user_id,
+                action="DELETE",
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="API key not found",

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.api.deps import get_current_tenant
+from logmorph.core.telemetry import log_idor_probe
 from logmorph.db.models import User
 from logmorph.db.session import get_session
 from logmorph.domain.uls import LogFormatEnum, SeverityEnum
@@ -229,6 +230,16 @@ async def get_event_by_id(
     )
 
     if not event:
+        # Check if event exists globally under another tenant (IDOR probe telemetry - FIX-P14)
+        global_rec = await adapter.get_log_record_global(session=session, event_id=event_id)
+        if global_rec and global_rec.tenant_id != user.id:
+            log_idor_probe(
+                resource_type="LogRecord",
+                resource_id=event_id,
+                requesting_tenant_id=user.id,
+                actual_owner_tenant_id=global_rec.tenant_id,
+                action="READ",
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found",
@@ -272,6 +283,16 @@ async def delete_event_by_id(
     )
 
     if not deleted:
+        # Check if event exists globally under another tenant (IDOR probe telemetry - FIX-P14)
+        global_rec = await adapter.get_log_record_global(session=session, event_id=event_id)
+        if global_rec and global_rec.tenant_id != user.id:
+            log_idor_probe(
+                resource_type="LogRecord",
+                resource_id=event_id,
+                requesting_tenant_id=user.id,
+                actual_owner_tenant_id=global_rec.tenant_id,
+                action="DELETE",
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found",

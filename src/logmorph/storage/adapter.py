@@ -462,6 +462,19 @@ class PostgresStorageAdapter:
         record = res.first()
         return record_to_event_detail(record) if record else None
 
+    async def get_log_record_global(
+        self,
+        session: AsyncSession,
+        event_id: str,
+    ) -> LogRecord | None:
+        """Fetch a log record globally without tenant filtering to detect cross-tenant IDOR probes."""
+        stmt = select(LogRecord).where(
+            col(LogRecord.event_id) == event_id,
+            col(LogRecord.is_deleted).is_(False),
+        )
+        res = await session.exec(stmt)
+        return res.first()
+
     async def search_events(
         self,
         session: AsyncSession,
