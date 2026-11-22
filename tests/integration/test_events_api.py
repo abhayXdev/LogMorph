@@ -668,3 +668,74 @@ async def test_event_source_project_name_attribution_and_filter(
     detail_data = detail_resp.json()
     assert detail_data["source_name"] == "Payment Gateway"
     assert detail_data["source"]["name"] == "Payment Gateway"
+
+
+# ==============================================================================
+# 9. Inverted Temporal Range Validation Tests (FIX-P6)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_events_inverted_temporal_range_returns_422(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify inverted temporal range (from > to) returns 422 Unprocessable Content."""
+    tenant, token, _ = await _create_test_tenant(async_db, email="temporal_inv@tenant.com")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # from=December 2026, to=November 2026 (impossible range)
+    resp = await async_client.get(
+        "/api/v1/events?from=2026-12-01T00:00:00Z&to=2026-11-01T00:00:00Z",
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    data = resp.json()
+    assert data["status_code"] == 422
+    assert data["error_code"] == "VALIDATION_ERROR"
+    assert "Temporal filter 'from' must be earlier than or equal to 'to'" in data["detail"]
+
+
+@pytest.mark.asyncio
+async def test_list_events_equal_and_valid_temporal_range_returns_200(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify equal timestamps (from == to) and valid range (from < to) return 200 OK."""
+    tenant, token, _ = await _create_test_tenant(async_db, email="temporal_val@tenant.com")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Equal timestamps
+    resp_eq = await async_client.get(
+        "/api/v1/events?from=2026-11-01T00:00:00Z&to=2026-11-01T00:00:00Z",
+        headers=headers,
+    )
+    assert resp_eq.status_code == 200
+    assert "events" in resp_eq.json()
+
+    # Valid range
+    resp_val = await async_client.get(
+        "/api/v1/events?from=2026-11-01T00:00:00Z&to=2026-12-01T00:00:00Z",
+        headers=headers,
+    )
+    assert resp_val.status_code == 200
+    assert "events" in resp_val.json()
+
+
+@pytest.mark.asyncio
+async def test_list_events_mixed_naive_aware_temporal_comparison_safe(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify comparing naive and timezone-aware datetimes is handled without 500 TypeError."""
+    tenant, token, _ = await _create_test_tenant(async_db, email="temporal_mixed@tenant.com")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # One UTC aware (Z), one naive without offset — inverted
+    resp = await async_client.get(
+        "/api/v1/events?from=2026-12-01T00:00:00Z&to=2026-11-01T00:00:00",
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    data = resp.json()
+    assert data["error_code"] == "VALIDATION_ERROR"
