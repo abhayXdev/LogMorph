@@ -1,5 +1,6 @@
 """LogMorph FastAPI Application Entrypoint."""
 
+import json
 import logging
 import time
 from collections.abc import AsyncGenerator
@@ -27,6 +28,11 @@ logger = logging.getLogger(__name__)
 
 # Track process startup time for uptime calculation
 START_TIME: float = time.time()
+
+# Health check caching state (5s TTL to prevent connection pool exhaustion under load - FIX-P3)
+_HEALTH_CACHE: dict[str, Any] | None = None
+_HEALTH_CACHE_TIMESTAMP: float = 0.0
+_HEALTH_CACHE_TTL: float = 5.0
 
 
 @asynccontextmanager
@@ -178,7 +184,36 @@ async def health_check(
     session: Annotated[AsyncSession, Depends(get_session)],
     producer: Annotated[LogMorphKafkaProducer, Depends(get_kafka_producer)],
 ) -> dict[str, Any]:
-    """Retrieve runtime health and connected service dependencies."""
+    """Retrieve runtime health and connected service dependencies with 5s cache (FIX-P3)."""
+    global _HEALTH_CACHE, _HEALTH_CACHE_TIMESTAMP
+    now = time.monotonic()
+
+    # 1. Fast-path: Return cached in-memory health result if within 5-second TTL
+    if _HEALTH_CACHE is not None and (now - _HEALTH_CACHE_TIMESTAMP) < _HEALTH_CACHE_TTL:
+        cached_result = dict(_HEALTH_CACHE)
+        cached_result["uptime_seconds"] = int(time.time() - START_TIME)
+        cached_result["cached"] = True
+        return cached_result
+
+    # 2. Redis-backed shared cache lookup across container replicas
+    if settings.REDIS_URL and settings.ENVIRONMENT not in ("test", "development"):
+        try:
+            import redis.asyncio as aioredis
+
+            r_client = aioredis.from_url(settings.REDIS_URL, socket_timeout=1)
+            raw_cached = await r_client.get("logmorph:health_cache")
+            await r_client.aclose()
+            if raw_cached:
+                cached_data = json.loads(raw_cached)
+                cached_data["uptime_seconds"] = int(time.time() - START_TIME)
+                cached_data["cached"] = True
+                _HEALTH_CACHE = cached_data
+                _HEALTH_CACHE_TIMESTAMP = now
+                return cached_data
+        except Exception as e:
+            logger.debug("Redis health cache read failed: %s", e)
+
+    # 3. Cache miss: Perform live dependency checks
     db_status = "connected"
     try:
         await session.exec(select(1))
@@ -200,6 +235,7 @@ async def health_check(
     if settings.REDIS_URL:
         try:
             import redis.asyncio as aioredis
+
             r_client = aioredis.from_url(settings.REDIS_URL, socket_timeout=2)
             await r_client.ping()
             await r_client.aclose()
@@ -211,14 +247,36 @@ async def health_check(
     uptime_seconds = int(time.time() - START_TIME)
     is_healthy = db_status == "connected" and kafka_status in ("connected", "fallback_buffer")
 
-    return {
+    result = {
         "status": "healthy" if is_healthy else "degraded",
         "version": "0.1.0",
         "database": db_status,
         "kafka": kafka_status,
         "redis": redis_status,
         "uptime_seconds": uptime_seconds,
+        "cached": False,
     }
+
+    # Populate in-memory cache
+    _HEALTH_CACHE = dict(result)
+    _HEALTH_CACHE_TIMESTAMP = now
+
+    # Populate shared Redis cache (5-second TTL) if connected and healthy
+    if settings.REDIS_URL and is_healthy and settings.ENVIRONMENT not in ("test", "development"):
+        try:
+            import redis.asyncio as aioredis
+
+            r_client = aioredis.from_url(settings.REDIS_URL, socket_timeout=1)
+            await r_client.set(
+                "logmorph:health_cache",
+                json.dumps(result),
+                ex=int(_HEALTH_CACHE_TTL),
+            )
+            await r_client.aclose()
+        except Exception as e:
+            logger.debug("Redis health cache write failed: %s", e)
+
+    return result
 
 
 @app.get("/", include_in_schema=False)
