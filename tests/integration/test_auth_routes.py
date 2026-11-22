@@ -360,3 +360,27 @@ async def test_change_password_flow(
     )
     assert success_resp.status_code == 200
     assert success_resp.json()["message"] == "Password updated successfully"
+
+    # FIX-P8: Replay old token — must be revoked with 401 Unauthorized
+    revoked_me_resp = await async_client.get("/auth/me", headers=headers)
+    assert revoked_me_resp.status_code == 401
+    assert "Session revoked" in revoked_me_resp.json()["detail"]
+
+    # FIX-P8: Replay old token to refresh endpoint — must also be rejected
+    revoked_refresh_resp = await async_client.post("/auth/refresh", headers=headers)
+    assert revoked_refresh_resp.status_code == 401
+    assert "Session revoked" in revoked_refresh_resp.json()["detail"]
+
+    # Login with new password succeeds and issues new valid token (version 2)
+    new_login_resp = await async_client.post(
+        "/auth/login",
+        json={"email": user.email, "password": "NewPassword#12345"},
+    )
+    assert new_login_resp.status_code == 200
+    new_token = new_login_resp.json()["access_token"]
+    new_headers = {"Authorization": f"Bearer {new_token}"}
+
+    # New token works on /auth/me
+    new_me_resp = await async_client.get("/auth/me", headers=new_headers)
+    assert new_me_resp.status_code == 200
+    assert new_me_resp.json()["email"] == user.email

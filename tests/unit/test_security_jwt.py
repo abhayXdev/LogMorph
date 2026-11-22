@@ -105,3 +105,24 @@ def test_token_with_invalid_token_type_rejected():
 
     with pytest.raises(jwt.InvalidTokenError, match="expected access token"):
         decode_access_token(refresh_token)
+
+
+def test_create_access_token_embeds_token_version():
+    """Verify that create_access_token embeds the provided token_version in JWT claims."""
+    token = create_access_token(
+        subject="usr_test_version",
+        email="version@test.io",
+        token_version=42,
+    )
+    payload = decode_access_token(token)
+    assert payload.get("token_version") == 42
+
+
+def test_create_access_token_default_token_version_is_one():
+    """Verify that default token_version is 1 for backwards compatibility."""
+    token = create_access_token(
+        subject="usr_default_version",
+        email="default@test.io",
+    )
+    payload = decode_access_token(token)
+    assert payload.get("token_version") == 1
