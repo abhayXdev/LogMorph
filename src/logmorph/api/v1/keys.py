@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -77,7 +78,10 @@ async def list_keys(
     """List all API keys belonging to the authenticated tenant."""
     stmt = (
         select(ApiKey)
-        .where(ApiKey.user_id == user.id)
+        .where(
+            ApiKey.user_id == user.id,
+            ApiKey.deleted_at.is_(None),
+        )
         .order_by(ApiKey.created_at.desc())  # type: ignore[attr-defined]
     )
     res = await session.exec(stmt)
@@ -120,7 +124,11 @@ async def revoke_key(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, str]:
     """Revoke and delete an API key."""
-    stmt = select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == user.id)
+    stmt = select(ApiKey).where(
+        ApiKey.id == key_id,
+        ApiKey.user_id == user.id,
+        ApiKey.deleted_at.is_(None),
+    )
     res = await session.exec(stmt)
     key = res.first()
 
@@ -130,7 +138,9 @@ async def revoke_key(
             detail="API key not found",
         )
 
-    await session.delete(key)
+    key.is_active = False
+    key.deleted_at = datetime.now(UTC)
+    session.add(key)
     await session.commit()
 
     return {

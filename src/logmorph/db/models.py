@@ -63,6 +63,7 @@ class ApiKey(ApiKeyBase, table=True):
     key_prefix: str = Field(nullable=False)  # First 12 chars for display
     is_active: bool = Field(default=True, nullable=False)
     last_used_at: datetime | None = Field(default=None, nullable=True)
+    deleted_at: datetime | None = Field(default=None, index=True, nullable=True)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         nullable=False,
@@ -97,6 +98,8 @@ class LogRecordBase(SQLModel):
     geoip_country: str | None = Field(default=None, index=True, nullable=True)
     attributes_json: str = Field(default="{}", nullable=False)
     enrichment_json: str | None = Field(default=None, nullable=True)
+    is_deleted: bool = Field(default=False, index=True, nullable=False)
+    deleted_at: datetime | None = Field(default=None, index=True, nullable=True)
 
 
 class LogRecord(LogRecordBase, table=True):
@@ -130,6 +133,8 @@ class LogSourceBase(SQLModel):
     status: str = Field(default="active", nullable=False)
     events_count: int = Field(default=0, nullable=False)
     last_seen_at: datetime | None = Field(default=None, nullable=True)
+    is_deleted: bool = Field(default=False, index=True, nullable=False)
+    deleted_at: datetime | None = Field(default=None, index=True, nullable=True)
 
 
 class LogSource(LogSourceBase, table=True):

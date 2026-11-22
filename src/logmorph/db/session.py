@@ -89,6 +89,29 @@ async def init_db() -> None:
                     "ON log_sources (tenant_id, created_at DESC)"
                 )
             )
+            # Ensure soft-deletion tombstone columns exist on pre-existing databases (FIX-P16)
+            if "postgresql" in str(conn.engine.url):
+                await conn.execute(
+                    text("ALTER TABLE log_records ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;")
+                )
+                await conn.execute(
+                    text("ALTER TABLE log_records ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;")
+                )
+                await conn.execute(
+                    text("CREATE INDEX IF NOT EXISTS ix_log_records_is_deleted ON log_records (is_deleted);")
+                )
+                await conn.execute(
+                    text("ALTER TABLE log_sources ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;")
+                )
+                await conn.execute(
+                    text("ALTER TABLE log_sources ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;")
+                )
+                await conn.execute(
+                    text("CREATE INDEX IF NOT EXISTS ix_log_sources_is_deleted ON log_sources (is_deleted);")
+                )
+                await conn.execute(
+                    text("ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;")
+                )
             logger.info("Database initialized successfully.")
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")

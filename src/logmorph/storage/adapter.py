@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -309,7 +310,10 @@ class PostgresStorageAdapter:
     ) -> tuple[list[LogRecordRead], int]:
         """Execute multi-vector indexed search strictly bounded by tenant isolation."""
         params = filter_params or LogQueryFilter()
-        conditions: list[Any] = [col(LogRecord.tenant_id) == tenant_id]
+        conditions: list[Any] = [
+            col(LogRecord.tenant_id) == tenant_id,
+            col(LogRecord.is_deleted).is_(False),
+        ]
 
         if params.start_time:
             conditions.append(col(LogRecord.timestamp) >= params.start_time)
@@ -372,6 +376,7 @@ class PostgresStorageAdapter:
         stmt = select(LogRecord).where(
             col(LogRecord.tenant_id) == tenant_id,
             col(LogRecord.event_id) == event_id,
+            col(LogRecord.is_deleted).is_(False),
         )
         res = await session.exec(stmt)
         record = res.first()
@@ -385,7 +390,10 @@ class PostgresStorageAdapter:
     ) -> tuple[list[EventItem], int]:
         """Execute multi-vector indexed search returning canonical EventItem objects."""
         params = filter_params or LogQueryFilter()
-        conditions: list[Any] = [col(LogRecord.tenant_id) == tenant_id]
+        conditions: list[Any] = [
+            col(LogRecord.tenant_id) == tenant_id,
+            col(LogRecord.is_deleted).is_(False),
+        ]
 
         if params.start_time:
             conditions.append(col(LogRecord.timestamp) >= params.start_time)
@@ -448,6 +456,7 @@ class PostgresStorageAdapter:
         stmt = select(LogRecord).where(
             col(LogRecord.tenant_id) == tenant_id,
             col(LogRecord.event_id) == event_id,
+            col(LogRecord.is_deleted).is_(False),
         )
         res = await session.exec(stmt)
         record = res.first()
@@ -468,6 +477,7 @@ class PostgresStorageAdapter:
         term = f"%{clean_q}%"
         conditions: list[Any] = [
             col(LogRecord.tenant_id) == tenant_id,
+            col(LogRecord.is_deleted).is_(False),
             or_(
                 col(LogRecord.raw_log).ilike(term),
                 col(LogRecord.action).ilike(term),
@@ -527,16 +537,19 @@ class PostgresStorageAdapter:
         tenant_id: UUID,
         event_id: str,
     ) -> bool:
-        """Delete an individual log record strictly bounded by tenant ownership."""
+        """Soft-delete an individual log record strictly bounded by tenant ownership."""
         stmt = select(LogRecord).where(
             col(LogRecord.tenant_id) == tenant_id,
             col(LogRecord.event_id) == event_id,
+            col(LogRecord.is_deleted).is_(False),
         )
         res = await session.exec(stmt)
         record = res.first()
         if not record:
             return False
-        await session.delete(record)
+        record.is_deleted = True
+        record.deleted_at = datetime.now(UTC)
+        session.add(record)
         await session.commit()
         return True
 
@@ -547,13 +560,21 @@ class PostgresStorageAdapter:
     ) -> TenantLogStats:
         """Compute aggregated security and operational metrics for a tenant."""
         # Total logs count
-        total_stmt = select(func.count()).select_from(LogRecord).where(col(LogRecord.tenant_id) == tenant_id)
+        total_stmt = (
+            select(func.count())
+            .select_from(LogRecord)
+            .where(
+                col(LogRecord.tenant_id) == tenant_id,
+                col(LogRecord.is_deleted).is_(False),
+            )
+        )
         total_logs = int((await session.exec(total_stmt)).one() or 0)
 
         # Threat match count
         threat_stmt = select(func.count()).select_from(LogRecord).where(
             col(LogRecord.tenant_id) == tenant_id,
             col(LogRecord.threat_matched) == True,  # noqa: E712
+            col(LogRecord.is_deleted).is_(False),
         )
         threat_count = int((await session.exec(threat_stmt)).one() or 0)
 
@@ -561,13 +582,17 @@ class PostgresStorageAdapter:
         dup_stmt = select(func.count()).select_from(LogRecord).where(
             col(LogRecord.tenant_id) == tenant_id,
             col(LogRecord.is_duplicate) == True,  # noqa: E712
+            col(LogRecord.is_deleted).is_(False),
         )
         duplicate_count = int((await session.exec(dup_stmt)).one() or 0)
 
         # Severity breakdown
         sev_stmt = (
             select(LogRecord.severity, func.count())
-            .where(col(LogRecord.tenant_id) == tenant_id)
+            .where(
+                col(LogRecord.tenant_id) == tenant_id,
+                col(LogRecord.is_deleted).is_(False),
+            )
             .group_by(col(LogRecord.severity))
         )
         sev_res = (await session.exec(sev_stmt)).all()
@@ -576,7 +601,10 @@ class PostgresStorageAdapter:
         # Format breakdown
         fmt_stmt = (
             select(LogRecord.detected_format, func.count())
-            .where(col(LogRecord.tenant_id) == tenant_id)
+            .where(
+                col(LogRecord.tenant_id) == tenant_id,
+                col(LogRecord.is_deleted).is_(False),
+            )
             .group_by(col(LogRecord.detected_format))
         )
         fmt_res = (await session.exec(fmt_stmt)).all()
@@ -588,6 +616,7 @@ class PostgresStorageAdapter:
             .where(
                 col(LogRecord.tenant_id) == tenant_id,
                 col(LogRecord.mitre_technique) != None,  # noqa: E711
+                col(LogRecord.is_deleted).is_(False),
             )
             .group_by(col(LogRecord.mitre_technique))
             .order_by(func.count().desc())
@@ -602,6 +631,7 @@ class PostgresStorageAdapter:
             .where(
                 col(LogRecord.tenant_id) == tenant_id,
                 col(LogRecord.geoip_country) != None,  # noqa: E711
+                col(LogRecord.is_deleted).is_(False),
             )
             .group_by(col(LogRecord.geoip_country))
             .order_by(func.count().desc())

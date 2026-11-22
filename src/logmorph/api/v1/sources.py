@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -81,7 +82,10 @@ async def list_sources(
     """Retrieve all log collector sources configured for the calling tenant."""
     stmt = (
         select(LogSource)
-        .where(LogSource.tenant_id == user.id)
+        .where(
+            LogSource.tenant_id == user.id,
+            LogSource.is_deleted.is_(False),
+        )
         .order_by(LogSource.created_at.desc())  # type: ignore[attr-defined]
     )
     res = await session.exec(stmt)
@@ -132,6 +136,7 @@ async def delete_source(
     stmt = select(LogSource).where(
         LogSource.id == source_id,
         LogSource.tenant_id == user.id,
+        LogSource.is_deleted.is_(False),
     )
     res = await session.exec(stmt)
     source = res.first()
@@ -142,7 +147,10 @@ async def delete_source(
             detail="Source not found",
         )
 
-    await session.delete(source)
+    source.is_deleted = True
+    source.status = "archived"
+    source.deleted_at = datetime.now(UTC)
+    session.add(source)
     await session.commit()
 
     return LogSourceDeleteResponse(
