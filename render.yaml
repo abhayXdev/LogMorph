@@ -7,6 +7,7 @@ services:
     name: logmorph-api
     runtime: docker
     dockerfilePath: Dockerfile
+    dockerCommand: uvicorn logmorph.main:app --host 0.0.0.0 --port 10000 --workers 2 --proxy-headers --timeout-keep-alive 30 --limit-max-requests 10000
     plan: free
     region: oregon
     healthCheckPath: /health

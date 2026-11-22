@@ -66,4 +66,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:${PORT:-7860}/health || exit 1
 
 # Production entrypoint supporting dynamic cloud $PORT (Hugging Face 7860, Render 10000, Compose 8000)
-CMD ["sh", "-c", "uvicorn logmorph.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 2 --proxy-headers"]
+CMD ["sh", "-c", "uvicorn logmorph.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 2 --proxy-headers --timeout-keep-alive 30 --limit-max-requests 10000"]

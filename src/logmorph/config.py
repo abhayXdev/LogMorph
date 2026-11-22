@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "abhaypaul058@gmail.com"
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # Server / Uvicorn Tuning (FIX-P13)
+    UVICORN_KEEP_ALIVE_TIMEOUT: int = 30
+    UVICORN_MAX_REQUESTS: int = 10000
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
