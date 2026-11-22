@@ -51,6 +51,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_access_token(
     subject: str | UUID,
     email: str,
+    token_version: int = 1,
     expires_delta: timedelta | None = None,
 ) -> str:
     """Create a signed JWT access token.
@@ -58,6 +59,7 @@ def create_access_token(
     Args:
         subject: Subject identifier (typically User UUID).
         email: User email address.
+        token_version: Version counter for session invalidation.
         expires_delta: Optional custom token expiration duration.
 
     Returns:
@@ -72,6 +74,7 @@ def create_access_token(
     payload: dict[str, Any] = {
         "sub": str(subject),
         "email": email,
+        "token_version": token_version,
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
         "token_type": "access",

@@ -120,6 +120,15 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Token version validation — revokes access tokens issued before password changes
+    token_version_in_jwt = payload.get("token_version")
+    if token_version_in_jwt is None or token_version_in_jwt != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session revoked. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if not user.is_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -204,6 +213,15 @@ async def get_current_tenant(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account not found or deactivated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Token version validation — revokes access tokens issued before password changes
+    token_version_in_jwt = payload.get("token_version")
+    if token_version_in_jwt is None or token_version_in_jwt != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session revoked. Please log in again.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

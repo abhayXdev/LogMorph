@@ -5,6 +5,7 @@ from __future__ import annotations
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlmodel import select
@@ -121,7 +122,11 @@ async def signup(
     )
 
     # 5. Issue JWT token
-    access_token = create_access_token(subject=user.id, email=user.email)
+    access_token = create_access_token(
+        subject=user.id,
+        email=user.email,
+        token_version=user.token_version,
+    )
 
     return AuthResponse(
         id=user.id,
@@ -177,7 +182,11 @@ async def login(
             detail="Email address not verified. Please verify your email before logging in. Check your inbox or use /auth/resend-verification to request a new link.",
         )
 
-    access_token = create_access_token(subject=user.id, email=user.email)
+    access_token = create_access_token(
+        subject=user.id,
+        email=user.email,
+        token_version=user.token_version,
+    )
 
     return AuthResponse(
         access_token=access_token,
@@ -236,8 +245,36 @@ async def refresh_token(
 
     try:
         payload = decode_access_token(raw_token)
-        new_token = create_access_token(subject=payload["sub"], email=payload["email"])
+        user_id_str = payload.get("sub")
+        if not user_id_str:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token missing subject claim",
+            )
+        user_id = UUID(user_id_str)
+        stmt = select(User).where(User.id == user_id)
+        res = await session.exec(stmt)
+        user = res.first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account not found or deactivated",
+            )
+        token_version_in_jwt = payload.get("token_version")
+        if token_version_in_jwt is None or token_version_in_jwt != user.token_version:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session revoked. Please log in again.",
+            )
+
+        new_token = create_access_token(
+            subject=user.id,
+            email=user.email,
+            token_version=user.token_version,
+        )
         return {"access_token": new_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -448,6 +485,8 @@ async def change_password(
 
     user.hashed_password = hash_password(payload.new_password)
     user.token_version += 1
+    user.reset_token_hash = None
+    user.reset_token_expires_at = None
     session.add(user)
     await session.commit()
 
