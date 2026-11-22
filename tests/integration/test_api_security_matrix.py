@@ -17,6 +17,7 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.core.keys import generate_api_key
+from logmorph.core.probe_limiter import reset_probe_limiter
 from logmorph.core.security import create_access_token, hash_password
 from logmorph.db.models import ApiKey, LogRecord, LogSource, User
 
@@ -408,3 +409,63 @@ async def test_404_not_found_standard_envelope(async_client: AsyncClient):
     assert data["status_code"] == 404
     assert data["error_code"] == "NOT_FOUND"
     assert "detail" in data
+
+
+# ==============================================================================
+# 6. 404 Cascade Adaptive Rate Limiting Tests (FIX-P15)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_404_cascade_throttles_after_threshold(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify rapid 404 probes escalate to HTTP 429 Too Many Requests after 20 probes."""
+    reset_probe_limiter()
+    user, token = await _create_test_user(async_db, email="prober@corp.com")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # First 20 404 probes return 404 Not Found
+    for i in range(20):
+        fake_uuid = str(uuid.uuid4())
+        resp = await async_client.get(f"/api/v1/events/evt_{fake_uuid}", headers=headers)
+        assert resp.status_code == 404, f"Probe #{i+1} expected 404, got {resp.status_code}"
+
+    # 21st probe must trigger HTTP 429 Too Many Requests
+    exceeded_uuid = str(uuid.uuid4())
+    resp_throttled = await async_client.get(f"/api/v1/events/evt_{exceeded_uuid}", headers=headers)
+    assert resp_throttled.status_code == 429
+    assert resp_throttled.headers.get("retry-after") == "60"
+    data = resp_throttled.json()
+    assert data["error_code"] == "TOO_MANY_404_PROBES"
+    assert "Too many not-found requests" in data["detail"]
+
+    # Verify second tenant is completely unaffected by tenant 1's throttling
+    user2, token2 = await _create_test_user(async_db, email="innocent@corp.com")
+    resp_user2 = await async_client.get(
+        f"/api/v1/events/evt_{uuid.uuid4()}",
+        headers={"Authorization": f"Bearer {token2}"},
+    )
+    assert resp_user2.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_404_cascade_does_not_affect_successful_requests(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify legitimate 200 OK queries do not increment the 404 probe rate limiter."""
+    reset_probe_limiter()
+    user, token = await _create_test_user(async_db, email="legit@corp.com")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Execute 25 successful queries
+    for _ in range(25):
+        resp = await async_client.get("/api/v1/events", headers=headers)
+        assert resp.status_code == 200
+
+    # Ensure a single 404 returns normal 404 and is not throttled
+    resp_404 = await async_client.get(f"/api/v1/events/evt_{uuid.uuid4()}", headers=headers)
+    assert resp_404.status_code == 404
+
