@@ -255,3 +255,46 @@ async def test_api_key_last_used_at_updated_on_ingest(
 
     await async_db.refresh(db_key)
     assert db_key.last_used_at is not None
+
+
+@pytest.mark.asyncio
+async def test_single_log_ingest_with_nul_byte_sanitized(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify that a log line containing NUL bytes (0x00) is sanitized and accepted."""
+    _, raw_key, _ = await _create_test_tenant_and_key(
+        async_db, email="nul_sanitizer@corp.com"
+    )
+
+    payload = {
+        "raw_log": "Syslog header \x00 attack payload after null",
+        "source": "nul-test-source",
+    }
+    headers = {"Authorization": f"Bearer {raw_key}"}
+
+    response = await async_client.post("/api/v1/ingest", json=payload, headers=headers)
+    assert response.status_code == 202
+    data = response.json()
+    assert data["status"] == "accepted"
+    assert data["event_id"].startswith("evt_")
+
+
+@pytest.mark.asyncio
+async def test_single_log_pure_nul_byte_rejected(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify that a raw_log composed entirely of NUL bytes fails with 422 validation error."""
+    _, raw_key, _ = await _create_test_tenant_and_key(
+        async_db, email="purenul_validator@corp.com"
+    )
+
+    payload = {"raw_log": "\x00\x00\x00\x00"}
+    headers = {"Authorization": f"Bearer {raw_key}"}
+
+    response = await async_client.post("/api/v1/ingest", json=payload, headers=headers)
+    assert response.status_code == 422
+    data = response.json()
+    assert data["status_code"] == 422
+    assert data["error_code"] == "VALIDATION_ERROR"
