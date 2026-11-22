@@ -390,3 +390,15 @@ async def test_stats_endpoints(
     tier_names = [t["tier"] for t in cascade["tiers"]]
     assert "RULE" in tier_names
     assert "TEMPLATE" in tier_names
+
+
+@pytest.mark.asyncio
+async def test_head_methods_supported_on_health_and_root(async_client: AsyncClient):
+    """Verify HTTP HEAD method is supported on /health and / to prevent 405 scan errors."""
+    resp_health = await async_client.head("/health")
+    assert resp_health.status_code == 200
+
+    resp_root = await async_client.head("/")
+    assert resp_root.status_code in (301, 302, 307, 308)
+    assert "/docs" in resp_root.headers.get("location", "")
+

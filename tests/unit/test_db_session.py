@@ -1,6 +1,8 @@
 """Unit tests for database session engine configuration and connection pooling."""
 
-from logmorph.db.session import _prepare_db_connection, engine
+import pytest
+
+from logmorph.db.session import _prepare_db_connection, engine, init_db
 
 
 def test_engine_pool_pre_ping_and_recycle_configured():
@@ -27,3 +29,12 @@ def test_prepare_db_connection_generic_postgres():
     url, connect_args = _prepare_db_connection("postgresql+asyncpg://user:pass@localhost:5432/testdb")
     assert url == "postgresql+asyncpg://user:pass@localhost:5432/testdb"
     assert connect_args.get("statement_cache_size") == 0
+
+
+@pytest.mark.asyncio
+async def test_init_db_executes_idempotently():
+    """Verify init_db initializes schemas without error across multiple invocations."""
+    await init_db()
+    # Second invocation should be completely idempotent and safe
+    await init_db()
+
