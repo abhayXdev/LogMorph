@@ -141,6 +141,50 @@ async def test_sandbox_parse_json_log(
     assert data["processing_ms"] >= 0.0
 
 
+@pytest.mark.asyncio
+async def test_sandbox_oversized_payload_rejected_422(
+    async_client: AsyncClient,
+):
+    """Verify raw_log exceeding 8192 characters is rejected with 422 Unprocessable Content."""
+    oversized = "A" * 9000
+    response = await async_client.post(
+        "/api/v1/sandbox/parse",
+        json={"raw_log": oversized},
+    )
+    assert response.status_code == 422
+    data = response.json()
+    assert data["status_code"] == 422
+    assert data["error_code"] == "VALIDATION_ERROR"
+    assert "detail" in data
+
+
+@pytest.mark.asyncio
+async def test_sandbox_rate_limiting_enforced_429(
+    async_client: AsyncClient,
+):
+    """Verify rapid consecutive requests from a single client trigger 429 Too Many Requests."""
+    client_ip = "198.51.100.99"
+    headers = {"X-Forwarded-For": client_ip}
+
+    # Burst requests to exceed 30/minute limit
+    statuses = []
+    for i in range(35):
+        resp = await async_client.post(
+            "/api/v1/sandbox/parse",
+            json={"raw_log": f"test log event sequence {i}"},
+            headers=headers,
+        )
+        statuses.append(resp.status_code)
+        if resp.status_code == 429:
+            data = resp.json()
+            assert data["status_code"] == 429
+            assert data["error_code"] == "RATE_LIMIT_EXCEEDED"
+            assert "Retry-After" in resp.headers
+            break
+
+    assert 429 in statuses, f"Expected 429 Too Many Requests within 35 attempts, got {statuses}"
+
+
 # ==============================================================================
 # 3. Log Sources Management Tests
 # ==============================================================================
