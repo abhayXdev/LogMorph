@@ -61,6 +61,8 @@ frontend/Build LogMorph Telemetry Platform*
 *.zip
 *.tsbuildinfo
 .playwright-mcp/
+.vite/
+frontend/.vite/
 
 # --- Storage & Data Outputs ---
 /storage/

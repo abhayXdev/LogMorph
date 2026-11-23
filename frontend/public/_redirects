@@ -1,1 +1,3 @@
-/* /index.html 200
+# Cloudflare Pages & Workers SPA Fallback
+# Single Page Application routing is handled natively via 200.html and wrangler not_found_handling.
+# Do not declare `/* /index.html 200` to prevent Cloudflare API infinite loop detection (Error 100324).
