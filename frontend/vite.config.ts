@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const backendTarget = process.env.BACKEND_URL || 'https://logmorph.onrender.com';
 
@@ -10,6 +11,16 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'copy-200-html',
+      closeBundle() {
+        const distIndex = path.resolve(__dirname, './dist/index.html');
+        const dist200 = path.resolve(__dirname, './dist/200.html');
+        if (fs.existsSync(distIndex)) {
+          fs.copyFileSync(distIndex, dist200);
+        }
+      },
+    },
   ],
   resolve: {
     alias: {
