@@ -54,9 +54,13 @@ desktop.ini
 
 # --- Node / Frontend ---
 node_modules/
+frontend/node_modules/
 frontend/dist/
 frontend/build/
 frontend/Build LogMorph Telemetry Platform*
+*.zip
+*.tsbuildinfo
+.playwright-mcp/
 
 # --- Storage & Data Outputs ---
 /storage/
