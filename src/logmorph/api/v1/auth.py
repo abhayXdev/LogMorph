@@ -8,7 +8,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
-from sqlmodel import select
+from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from logmorph.api.deps import get_current_tenant
@@ -162,6 +162,10 @@ async def signup(
             "model": ErrorResponse,
             "description": "Invalid credentials",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Email address not verified",
+        },
         status.HTTP_429_TOO_MANY_REQUESTS: {
             "model": ErrorResponse,
             "description": "Too many failed attempts. Rate limit exceeded.",
@@ -175,8 +179,26 @@ async def login(
     payload: UserLoginRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AuthResponse:
-    """Authenticate with email and password."""
-    stmt = select(User).where(User.email == payload.email.lower().strip())
+    """Authenticate with email or user ID (UUID) and password."""
+    raw_ident = (payload.identifier or payload.email or "").strip()
+    if not raw_ident:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Either 'identifier' or 'email' must be provided.",
+        )
+
+    # Check if identifier is a valid UUID
+    parsed_uuid: UUID | None = None
+    try:
+        parsed_uuid = UUID(raw_ident)
+    except (ValueError, AttributeError):
+        parsed_uuid = None
+
+    if parsed_uuid:
+        stmt = select(User).where(or_(User.email == raw_ident.lower(), User.id == parsed_uuid))
+    else:
+        stmt = select(User).where(User.email == raw_ident.lower())
+
     res = await session.exec(stmt)
     user = res.first()
 

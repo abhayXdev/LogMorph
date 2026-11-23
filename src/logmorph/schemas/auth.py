@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 # ==============================================================================
 # 1. User Authentication & Profile
@@ -23,12 +24,32 @@ class UserSignupRequest(BaseModel):
 
 
 class UserLoginRequest(BaseModel):
-    """User login credential payload."""
+    """User login credential payload supporting email or user ID (UUID)."""
 
     model_config = ConfigDict(frozen=True)
 
-    email: EmailStr
-    password: str = Field(min_length=1)
+    identifier: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        description="User email address or user ID (UUID).",
+    )
+    email: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        description="Legacy email field for backward compatibility.",
+    )
+    password: str = Field(
+        min_length=1,
+        description="Account password.",
+    )
+
+    @model_validator(mode="after")
+    def validate_identifier_present(self) -> Self:
+        if not (self.identifier or self.email):
+            raise ValueError("Either 'identifier' or 'email' must be provided.")
+        return self
 
 
 class UserProfileResponse(BaseModel):

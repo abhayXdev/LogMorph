@@ -99,6 +99,57 @@ async def test_login_success(
 
 
 @pytest.mark.asyncio
+async def test_login_with_uuid_identifier_success(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify logging in with User UUID identifier string returns JWT token."""
+    plain_pw = "ValidP@ssword2026"
+    user = User(
+        email="uuid_user@logmorph.io",
+        full_name="UUID User",
+        hashed_password=hash_password(plain_pw),
+        is_verified=True,
+    )
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
+
+    # Login using identifier field set to stringified UUID
+    payload = {"identifier": str(user.id), "password": plain_pw}
+    response = await async_client.post("/auth/login", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["email"] == "uuid_user@logmorph.io"
+    assert str(data["id"]) == str(user.id)
+
+
+@pytest.mark.asyncio
+async def test_login_with_email_as_identifier_success(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify logging in with identifier field containing email returns JWT token."""
+    plain_pw = "ValidP@ssword2026"
+    user = User(
+        email="ident_email@logmorph.io",
+        full_name="Ident User",
+        hashed_password=hash_password(plain_pw),
+        is_verified=True,
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    payload = {"identifier": "ident_email@logmorph.io", "password": plain_pw}
+    response = await async_client.post("/auth/login", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["email"] == "ident_email@logmorph.io"
+
+
+@pytest.mark.asyncio
 async def test_login_unverified_user_blocked_403(
     async_client: AsyncClient,
     async_db: AsyncSession,
