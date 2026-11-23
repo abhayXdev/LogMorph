@@ -54,9 +54,19 @@ desktop.ini
 
 # --- Node / Frontend ---
 node_modules/
+frontend/node_modules/
 frontend/dist/
 frontend/build/
+frontend/Build LogMorph Telemetry Platform*
+*.zip
+*.tsbuildinfo
+.playwright-mcp/
+.vite/
+frontend/.vite/
 
 # --- Storage & Data Outputs ---
-storage/
+/storage/
 *.parquet
+
+# --- Project Documents (not source code) ---
+*.pdf

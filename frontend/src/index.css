@@ -1,0 +1,174 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Radio Canada Big', sans-serif;
+  --font-mono: 'Source Code Pro', monospace;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
+  --ease-soft: cubic-bezier(.22, .8, .24, 1);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-width: 320px;
+    background: #faf6f0;
+    color: #1a1d15;
+    font-family: var(--font-sans);
+  }
+  h1, h2, h3 {
+    font-family: 'Red Hat Text', sans-serif;
+  }
+  ::selection {
+    background: rgba(89, 9, 7, 0.15);
+    color: #590907;
+  }
+  a, button, input, select, textarea, summary {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 200ms;
+    transition-timing-function: var(--ease-soft);
+  }
+  button:not(:disabled):active, a:active {
+    transform: scale(.98);
+  }
+  :focus-visible {
+    outline: 2px solid rgba(89, 9, 7, .35);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+  input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: none;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #c6c8bb transparent;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+.font-ui-medium {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-weight: 500;
+}
+.font-ui-semibold {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-weight: 600;
+}
+.font-heading-semibold {
+  font-family: 'Red Hat Text', sans-serif;
+  font-weight: 600;
+}
+.font-heading-bold {
+  font-family: 'Red Hat Text', sans-serif;
+  font-weight: 700;
+}
+.font-mono-medium {
+  font-family: 'Source Code Pro', monospace;
+  font-weight: 500;
+}
+
+.auth-aside {
+  background-image: radial-gradient(circle at 50% 50%, rgba(165,167,155,.28) 0 52px, transparent 53px);
+}
+
+.precision-grid {
+  background-image:
+    linear-gradient(rgba(118,120,109,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(118,120,109,.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.ui-card {
+  box-shadow: 0 1px 2px rgba(26,29,21,.03), 0 8px 24px -18px rgba(26,29,21,.12);
+  transition: border-color 220ms var(--ease-soft), box-shadow 260ms var(--ease-soft), transform 260ms var(--ease-soft);
+}
+.ui-card:hover {
+  border-color: #b4b6a9;
+  box-shadow: 0 2px 4px rgba(26,29,21,.04), 0 18px 36px -22px rgba(89,9,7,.22);
+}
+
+.reference-card {
+  transition: transform 320ms var(--ease-soft), box-shadow 320ms var(--ease-soft), border-color 220ms ease;
+}
+.reference-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(89, 9, 7, .3);
+  box-shadow: 0 22px 40px -22px rgba(89, 9, 7, .28);
+}
+
+.soft-press:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px -14px rgba(89, 9, 7, .45);
+}
+.soft-press:not(:disabled):active {
+  transform: translateY(0) scale(.98);
+  box-shadow: none;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(14px) scale(.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-overlay-in {
+  animation: overlay-in 220ms var(--ease-soft) both;
+}
+.animate-dialog-in {
+  animation: dialog-in 340ms var(--ease-soft) both;
+}
+.animate-page-in {
+  animation: page-in 420ms var(--ease-soft) both;
+}
+
+/* Scroll Reveal Micro-Interactions */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  will-change: opacity, transform;
+}
+
+.reveal.reveal-in {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 500ms var(--ease-soft), transform 500ms var(--ease-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal.reveal-in {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .reference-card, .ui-card, .soft-press {
+    transition: none !important;
+    transform: none !important;
+  }
+  .reference-card:hover, .soft-press:hover {
+    transform: none !important;
+  }
+  .animate-overlay-in, .animate-dialog-in, .animate-page-in {
+    animation: none !important;
+  }
+  a, button {
+    transform: none !important;
+  }
+}
