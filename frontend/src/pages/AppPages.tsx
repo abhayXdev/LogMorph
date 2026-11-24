@@ -1648,17 +1648,17 @@ export function SourcesPage() {
                     <tr key={s.id} className="hover:bg-[#faf6f0] transition-colors">
                       <td className="px-5 py-4 font-medium text-[#1a1d15]">{s.name}</td>
                       <td className="px-5 py-4">
-                        <Badge tone="violet">{s.collector_type}</Badge>
+                        <Badge tone="violet">{s.type || s.collector_type || s.source_type || "SYSLOG"}</Badge>
                       </td>
                       <td className="px-5 py-4 font-mono text-xs text-[#45483e]">
                         {s.ip_cidr || "0.0.0.0/0 (Any)"}
                       </td>
                       <td className="px-5 py-4 font-mono text-xs text-[#1a1d15] font-semibold">
-                        {(s.event_count || 0).toLocaleString()}
+                        {(s.events_count ?? s.event_count ?? 0).toLocaleString()}
                       </td>
                       <td className="px-5 py-4">
-                        <Badge tone={s.status === "ACTIVE" ? "green" : "neutral"}>
-                          {s.status}
+                        <Badge tone={s.status?.toLowerCase() === "active" ? "green" : "neutral"}>
+                          {s.status?.toUpperCase() || "ACTIVE"}
                         </Badge>
                       </td>
                       <td className="px-5 py-4 text-right">

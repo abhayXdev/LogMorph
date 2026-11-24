@@ -130,12 +130,17 @@ export interface ApiKeyCreatedResponse extends ApiKeyItem {
 export interface LogSourceItem {
   id: string;
   name: string;
-  collector_type: "SYSLOG" | "FLUENTBIT" | "FILEBEAT" | "API" | string;
+  collector_type?: "SYSLOG" | "FLUENTBIT" | "FILEBEAT" | "API" | string;
+  type?: string;
+  source_type?: string;
   ip_cidr?: string;
-  status: "ACTIVE" | "IDLE" | "INACTIVE" | string;
-  event_count: number;
+  status: "ACTIVE" | "IDLE" | "INACTIVE" | "active" | string;
+  event_count?: number;
+  events_count?: number;
   last_active_at?: string | null;
+  last_seen_at?: string | null;
   created_at: string;
+  description?: string | null;
 }
 
 export interface StatsOverview {

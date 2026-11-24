@@ -67,6 +67,7 @@ frontend/.vite/
 # --- Storage & Data Outputs ---
 /storage/
 *.parquet
+*.log
 
 # --- Project Documents (not source code) ---
 *.pdf
