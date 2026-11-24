@@ -54,15 +54,16 @@ import { formatDate, severityTone, queryString } from "../utils/formatters";
 
 export function DashboardPage() {
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
+  const [loadingStats, setLoadingStats] = useState(true);
   const [overview, setOverview] = useState<StatsOverview>({
     total_events: 0,
     events_today: 0,
     avg_latency_ms: 0,
     active_sources_count: 0,
     threat_count: 0,
-    rule_percentage: 70.2,
-    template_percentage: 20.0,
-    llm_percentage: 7.6,
+    rule_percentage: 0,
+    template_percentage: 0,
+    llm_percentage: 0,
   });
 
   const [timeline, setTimeline] = useState<{ time: string; count: number }[]>([]);
@@ -73,66 +74,53 @@ export function DashboardPage() {
     top_techniques: { technique: string; count: number }[];
   }>({ recent_iocs: [], top_techniques: [] });
 
+  const loadStats = () => {
+    setLoadingStats(true);
+    Promise.allSettled([
+      api<StatsOverview>("/api/v1/stats").then((data) => setOverview(data)),
+      api<{ formats: FormatStatItem[] }>("/api/v1/stats/formats").then((res) => setFormats(res.formats || [])),
+      api<{ severity: { level: string; count: number }[] }>("/api/v1/stats/severity").then((res) => setSeverity(res.severity || [])),
+      api<{
+        recent_iocs: { type: string; value: string; seen_at: string }[];
+        top_techniques: { technique: string; count: number }[];
+      }>("/api/v1/stats/threats").then((res) => setThreats(res || { recent_iocs: [], top_techniques: [] })),
+    ]).finally(() => setLoadingStats(false));
+  };
+
   useEffect(() => {
-    // Attempt live stats calls with resilient fallbacks
-    api<StatsOverview>("/api/v1/stats")
-      .then((data) => setOverview(data))
-      .catch(() => {});
-
-    api<{ formats: FormatStatItem[] }>("/api/v1/stats/formats")
-      .then((res) => setFormats(res.formats))
-      .catch(() => {});
-
-    api<{ severity: { level: string; count: number }[] }>("/api/v1/stats/severity")
-      .then((res) => setSeverity(res.severity))
-      .catch(() => {});
-
-    api<{
-      recent_iocs: { type: string; value: string; seen_at: string }[];
-      top_techniques: { technique: string; count: number }[];
-    }>("/api/v1/stats/threats")
-      .then((res) => setThreats(res))
-      .catch(() => {});
+    loadStats();
   }, []);
 
   // Fetch timeline whenever time range selection changes
   useEffect(() => {
     api<{ data: { time: string; count: number }[] }>(`/api/v1/stats/timeline?period=${range}`)
       .then((res) => setTimeline(res.data || []))
-      .catch(() => {});
+      .catch(() => setTimeline([]));
   }, [range]);
 
   const metrics = [
-    ["Total Ingested Events", overview.total_events || 14223, "All time"],
-    ["Events (Last 24h)", overview.events_today || 1845, "Active stream"],
-    ["Active Collectors", overview.active_sources_count || 3, "Connected sources"],
-    ["Avg Parse Latency", `${(overview.avg_latency_ms || 4.2).toFixed(1)} ms`, "Per event"],
-    ["Threat IOCs Tagged", overview.threat_count || 18, "MITRE ATT&CK"],
-    ["Fast-Path Tier 1", `${overview.rule_percentage || 70.2}%`, "Rule / Regex"],
+    ["Total Ingested Events", loadingStats ? "—" : (overview.total_events ?? 0), "All time"],
+    ["Events (Last 24h)", loadingStats ? "—" : (overview.events_today ?? 0), "Active stream"],
+    ["Active Collectors", loadingStats ? "—" : (overview.active_sources_count ?? 0), "Connected sources"],
+    ["Avg Parse Latency", loadingStats ? "—" : `${(overview.avg_latency_ms ?? 0).toFixed(1)} ms`, "Per event"],
+    ["Threat IOCs Tagged", loadingStats ? "—" : (overview.threat_count ?? 0), "MITRE ATT&CK"],
+    ["Fast-Path Tier 1", loadingStats ? "—" : `${(overview.rule_percentage ?? 0).toFixed(1)}%`, "Rule / Regex"],
   ];
 
-  const formatRows = formats.length
-    ? formats
-    : [
-        { format: "SYSLOG", count: 5200, percentage: 35.8 },
-        { format: "JSON", count: 4100, percentage: 28.2 },
-        { format: "CEF", count: 2800, percentage: 19.3 },
-        { format: "LEEF / OTHER", count: 2423, percentage: 16.7 },
-      ];
+  const formatRows = formats;
 
-  const severityRows = severity.length
-    ? severity
-    : [
-        { level: "CRITICAL", count: 18 },
-        { level: "ERROR", count: 156 },
-        { level: "WARNING", count: 432 },
-        { level: "INFORMATIONAL", count: 8900 },
-      ];
+  const defaultSeverities = [
+    { level: "CRITICAL", count: 0 },
+    { level: "ERROR", count: 0 },
+    { level: "WARNING", count: 0 },
+    { level: "INFORMATIONAL", count: 0 },
+  ];
+  const severityRows = severity.length ? severity : defaultSeverities;
 
   const cascadeTiers = [
-    { tier: "1", label: "Rule / Regex Fast-Path", percentage: overview.rule_percentage || 70.2 },
-    { tier: "2", label: "Drain3 Tree Templates", percentage: overview.template_percentage || 20.0 },
-    { tier: "3", label: "NVIDIA NIM AI Inference", percentage: overview.llm_percentage || 7.6 },
+    { tier: "1", label: "Rule / Regex Fast-Path", percentage: overview.rule_percentage ?? 0 },
+    { tier: "2", label: "Drain3 Tree Templates", percentage: overview.template_percentage ?? 0 },
+    { tier: "3", label: "NVIDIA NIM AI Inference", percentage: overview.llm_percentage ?? 0 },
   ];
 
   return (
@@ -149,7 +137,7 @@ export function DashboardPage() {
         }
         actions={
           <>
-            <Button variant="secondary" onClick={() => window.location.reload()}>
+            <Button variant="secondary" onClick={() => loadStats()}>
               <RefreshCw className="size-4" />
               Refresh
             </Button>
@@ -249,32 +237,41 @@ export function DashboardPage() {
                 </span>
               }
             />
-            <div className="mt-4 space-y-3.5">
-              {formatRows.map((item, index) => (
-                <div key={item.format}>
-                  <div className="font-mono-medium mb-1 flex justify-between text-xs">
-                    <span className="text-[#1a1d15] font-semibold">{item.format}</span>
-                    <span className="text-[#45483e]">
-                      {item.count.toLocaleString()} ({item.percentage}%)
-                    </span>
+            {formatRows.length ? (
+              <div className="mt-4 space-y-3.5">
+                {formatRows.map((item, index) => (
+                  <div key={item.format}>
+                    <div className="font-mono-medium mb-1 flex justify-between text-xs">
+                      <span className="text-[#1a1d15] font-semibold">{item.format}</span>
+                      <span className="text-[#45483e]">
+                        {item.count.toLocaleString()} ({item.percentage}%)
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#f6efe5] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          index === 0
+                            ? "bg-[#590907]"
+                            : index === 1
+                            ? "bg-[#812720]"
+                            : index === 2
+                            ? "bg-[#45483e]"
+                            : "bg-[#76786d]"
+                        }`}
+                        style={{ width: `${item.percentage}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 rounded-full bg-[#f6efe5] overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        index === 0
-                          ? "bg-[#590907]"
-                          : index === 1
-                          ? "bg-[#812720]"
-                          : index === 2
-                          ? "bg-[#45483e]"
-                          : "bg-[#76786d]"
-                      }`}
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col items-center justify-center rounded-lg border border-dashed border-[#c6c8bb] bg-[#faf6f0] p-8 text-center">
+                <p className="font-ui-medium text-sm text-[#1a1d15]">No Telemetry Formats Recorded</p>
+                <p className="font-ui text-xs text-[#76786d] mt-1">
+                  Active format distributions will appear as events stream into LogMorph.
+                </p>
+              </div>
+            )}
           </Card>
 
           {/* Severity Breakdown */}
@@ -346,7 +343,7 @@ export function DashboardPage() {
                     </span>
                   </div>
                   <span className="font-mono-medium text-xs text-[#45483e]">
-                    {item.percentage}%
+                    {Number(item.percentage || 0).toFixed(1)}%
                   </span>
                 </div>
               ))}
@@ -357,8 +354,8 @@ export function DashboardPage() {
             <SectionTitle
               title="Top MITRE ATT&CK Detections"
               side={
-                <Badge tone="red">
-                  {threats.recent_iocs.length || 3} Threat Techniques
+                <Badge tone={threats.recent_iocs.length > 0 ? "red" : "neutral"}>
+                  {threats.recent_iocs.length} Threat Techniques
                 </Badge>
               }
             />
@@ -386,23 +383,11 @@ export function DashboardPage() {
                 </table>
               </div>
             ) : (
-              <div className="mt-3 space-y-2">
-                {[
-                  { id: "T1110", name: "Brute Force Authentication", count: 42 },
-                  { id: "T1046", name: "Network Service Discovery", count: 28 },
-                  { id: "T1059.001", name: "Command and Scripting Interpreter: PowerShell", count: 14 },
-                ].map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between border-b border-[#c6c8bb]/60 py-2.5 last:border-0 text-xs"
-                  >
-                    <div className="flex items-center gap-2 font-mono">
-                      <span className="font-semibold text-[#590907]">{item.id}</span>
-                      <span className="text-[#45483e]">{item.name}</span>
-                    </div>
-                    <span className="font-mono text-[#1a1d15] font-semibold">{item.count} hits</span>
-                  </div>
-                ))}
+              <div className="mt-4 flex flex-col items-center justify-center rounded-lg border border-dashed border-[#c6c8bb] bg-[#faf6f0] p-8 text-center">
+                <p className="font-ui-medium text-sm text-[#1a1d15]">No Threat IOCs Detected</p>
+                <p className="font-ui text-xs text-[#76786d] mt-1">
+                  Adversary techniques and IOC detections will appear dynamically as suspicious events are processed.
+                </p>
               </div>
             )}
           </Card>
@@ -479,11 +464,7 @@ export function LogsPage() {
   const [events, setEvents] = useState<UniversalLogEvent[]>([]);
   const [pagination, setPagination] = useState({ page: 1, total: 0, total_pages: 1, limit: 25 });
   const [loading, setLoading] = useState(true);
-  const [sourcesList, setSourcesList] = useState<string[]>([
-    "edge-firewall",
-    "auth-service",
-    "k8s-cluster",
-  ]);
+  const [sourcesList, setSourcesList] = useState<string[]>([]);
 
   const severity = params.get("severity") || "";
   const format = params.get("format") || "";
@@ -551,30 +532,8 @@ export function LogsPage() {
       })
       .catch(() => {
         if (!active) return;
-        // Fallback demo data if live API has no persisted events yet
-        setEvents([
-          {
-            event_id: "evt_3a19d02f",
-            timestamp: new Date().toISOString(),
-            raw_log: "<34>Oct 11 22:14:15 edge-fw-01 sshd[1842]: Failed password for root from 185.220.101.4 port 51822 ssh2",
-            detected_format: "SYSLOG",
-            severity: "CRITICAL",
-            source: { ip: "185.220.101.4", hostname: "edge-firewall" },
-            action: "AUTH_FAILED",
-            parsed_by: "RULE",
-          },
-          {
-            event_id: "evt_7c44b89e",
-            timestamp: new Date(Date.now() - 60000).toISOString(),
-            raw_log: "CEF:0|Palo Alto|Firewall|9.1|100|TRAFFIC|5|src=192.168.1.10 dst=10.0.0.5 act=ALLOW",
-            detected_format: "CEF",
-            severity: "NOTICE",
-            source: { ip: "192.168.1.10", hostname: "auth-service" },
-            action: "ALLOW",
-            parsed_by: "RULE",
-          },
-        ]);
-        setPagination({ page: 1, total: 2, total_pages: 1, limit: 25 });
+        setEvents([]);
+        setPagination({ page: 1, total: 0, total_pages: 1, limit: 25 });
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -767,39 +726,48 @@ export function EventDetailPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const [event, setEvent] = useState<UniversalLogEvent | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!eventId) return;
+    setLoading(true);
+    setError(null);
     api<UniversalLogEvent>(`/api/v1/events/${eventId}`)
-      .then(setEvent)
-      .catch(() => {
-        // Fallback representation for inspection
-        setEvent({
-          event_id: eventId,
-          timestamp: new Date().toISOString(),
-          raw_log: "<34>Oct 11 22:14:15 edge-fw-01 sshd[1842]: Failed password for root from 185.220.101.4 port 51822 ssh2",
-          detected_format: "SYSLOG",
-          severity: "CRITICAL",
-          source: { ip: "185.220.101.4", hostname: "edge-fw-01", port: 51822 },
-          security: { user: "root", process_name: "sshd", process_id: 1842, auth_action: "AUTH_FAILED" },
-          action: "AUTHENTICATION_FAILED",
-          parsed_by: "RULE",
-          enrichment: {
-            geoip: { country: "India", city: "Mumbai" },
-            threat_match: true,
-            mitre_technique: "T1110 - Brute Force",
-            mitre_tactic: "Credential Access",
-          },
-          attributes: { facility: 4, priority: 34, protocol: "ssh2" },
-        });
-      });
+      .then((res) => setEvent(res))
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Event not found");
+        setEvent(null);
+      })
+      .finally(() => setLoading(false));
   }, [eventId]);
 
-  if (!event) {
+  if (loading) {
     return (
       <div className="grid h-screen place-items-center">
         <RefreshCw className="size-6 animate-spin text-[#590907]" />
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-20 text-center">
+        <div className="rounded-2xl border border-[#c6c8bb] bg-white p-8 shadow-sm">
+          <div className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-[#ffdad5] text-[#93000a]">
+            <AlertCircle className="size-6" />
+          </div>
+          <h2 className="font-heading-semibold text-lg text-[#1a1d15]">Event Not Found</h2>
+          <p className="mt-2 text-sm text-[#45483e]">
+            {error || `No telemetry record exists with ID "${eventId}".`}
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link to="/logs">
+              <Button>Back to Log Explorer</Button>
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1329,7 +1297,7 @@ export function KeysPage() {
         body: JSON.stringify({ name: keyName }),
       });
       setCreatedKeyName(keyName);
-      setCreatedSecret(res.key || "lm_live_sample_secret_key_saved");
+      setCreatedSecret(res.key || "");
       loadKeys();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate API key");
@@ -1399,7 +1367,7 @@ export function KeysPage() {
                     <tr key={k.id} className="hover:bg-[#faf6f0] transition-colors">
                       <td className="px-5 py-4 font-medium text-[#1a1d15]">{k.name}</td>
                       <td className="px-5 py-4 font-mono text-xs text-[#590907] font-semibold">
-                        {k.key_prefix || "lm_live_••••••••"}
+                        {k.key_prefix || "••••••••"}
                       </td>
                       <td className="px-5 py-4 font-mono text-xs text-[#45483e]">
                         {formatDate(k.created_at)}
