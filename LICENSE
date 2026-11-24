@@ -1,0 +1,79 @@
+LogMorph Community & Non-Commercial Source License
+Version 1.0 — Effective November 2026
+
+Copyright (c) 2026 Abhay Paul
+Author & Copyright Holder: Abhay Paul
+Contact & Commercial Licensing: abhaypal058@gmail.com
+Repository: https://github.com/abhaypaul058/MINIproject
+
+================================================================================
+1. PREAMBLE & CORE PHILOSOPHY
+================================================================================
+LogMorph is created as an open-source, educational, and developer-centric platform.
+The objective of this license is to ensure the software remains 100% free and open
+for developers, students, researchers, and open-source contributors to study, learn
+from, modify, and improve, while strictly protecting the author's intellectual 
+property against unauthorized commercial exploitation, resale, or rebranding.
+
+================================================================================
+2. GRANTED RIGHTS (PERMITTED NON-COMMERCIAL USE)
+================================================================================
+Subject to the terms and conditions of this License, the Copyright Holder hereby
+grants to any person or entity a free, perpetual, worldwide, non-exclusive license
+to perform the following non-commercial actions:
+
+a. Educational & Learning Use: You may read, study, analyze, run, and experiment
+   with the source code for academic, personal, or educational purposes.
+b. Modification & Customization: You may alter, adapt, translate, and build upon
+   the codebase for your personal, private, non-commercial workflows.
+c. Community Contribution: You may contribute fixes, features, optimizations,
+   and documentation back to the official LogMorph project via pull requests.
+d. Private Testing & Research: You may deploy and execute the platform in private
+   or evaluation environments, provided no fees, charges, or commercial services
+   are transacted or collected from third parties.
+
+================================================================================
+3. RESTRICTIONS (PROHIBITED COMMERCIAL USE)
+================================================================================
+You may NOT use this software for any commercial purpose without obtaining a separate,
+written Commercial License from the Copyright Holder. Prohibited actions include:
+
+a. Direct Resale: You may NOT sell, sublicense, rent, lease, or charge any fee
+   for the software, source code, binaries, or derivatives thereof.
+b. Commercial Hosting / Managed SaaS: You may NOT operate, host, or deploy the
+   software (in original or modified form) as a commercial service, paid platform,
+   or Software-as-a-Service (SaaS) offered to third parties for financial gain.
+c. Rebranding & White-Labeling: You may NOT strip the author's copyright, rename
+   the platform, and market or distribute it as your own proprietary product.
+d. Bundling with Paid Offerings: You may NOT incorporate the core platform or its
+   parsers, database schema, or UI into a commercial product or paid appliance.
+
+================================================================================
+4. COMMERCIAL LICENSING & EXEMPTIONS
+================================================================================
+If you or your organization wish to use, distribute, integrate, or host LogMorph
+for commercial purposes, you MUST purchase a valid, written Commercial License
+from the Copyright Holder.
+
+To request commercial licensing terms, custom deployments, or enterprise support,
+please contact the author directly:
+   Name:  Abhay Paul
+   Email: abhaypal058@gmail.com
+
+================================================================================
+5. ATTRIBUTION & INTEGRITY
+================================================================================
+All copies, forks, distributions, and substantial portions of this software must
+conspicuously display this entire License file and maintain all original copyright
+notices attributing authorship to Abhay Paul.
+
+================================================================================
+6. DISCLAIMER OF WARRANTY & LIMITATION OF LIABILITY
+================================================================================
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO
+EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
