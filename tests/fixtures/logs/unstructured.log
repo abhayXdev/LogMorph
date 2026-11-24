@@ -1,0 +1,5 @@
+java.lang.NullPointerException: Cannot invoke "String.length()" because "str" is null at com.example.service.UserService.getUser(UserService.java:42)
+org.springframework.web.client.ResourceAccessException: I/O error on GET request for "http://auth-service/validate": Connect timed out
+Traceback (most recent call last): File "/app/main.py", line 42, in process_event ConnectionResetError: [Errno 104] Connection reset by peer
+[    0.000000] Linux version 6.5.0-generic (buildd@lcy02-amd64-001) (gcc (Ubuntu 11.4.0) 11.4.0) #35-Ubuntu SMP PREEMPT_DYNAMIC
+oom-killer: gfp_mask=0x1100cca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0

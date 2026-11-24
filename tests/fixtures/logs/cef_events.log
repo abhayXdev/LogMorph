@@ -1,0 +1,5 @@
+CEF:0|Palo Alto Networks|PAN-OS|10.1.0|TRAFFIC|end|1|src=192.168.1.20 dst=10.0.0.10 spt=54321 dpt=443 proto=tcp act=allow
+CEF:0|Check Point|VPN-1 & FireWall-1|4.1|drop|drop|0|act=drop src=10.0.0.1 dst=192.168.1.1 spt=1024 dpt=80 proto=TCP
+CEF:0|Trend Micro|Deep Security Agent|20.0|1000000|Malware Detected|8|src=10.10.10.5 dst=172.16.1.1 msg=Eicar-Test-Signature cn1=1 cn1Label=Severity
+<14>Mar 29 15:04:05 firewall01 CEF:0|Security|Firewall|1.0|100|Traffic Denied|5|src=192.168.1.50 dst=10.0.0.1 spt=4521 dpt=80
+<134>1 2026-10-30T03:15:20.000Z edge-gw01 - - - CEF:0|Imperva|SecureSphere|14.4|SQL_INJECTION|SQL Injection Attempt|9|src=203.0.113.195 dst=198.51.100.1 spt=50321 dpt=443 request=/login.php

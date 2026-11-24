@@ -1,0 +1,506 @@
+"""Integration tests for user registration, authentication, verification, and password lifecycle."""
+
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from httpx import AsyncClient
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from logmorph.core.email import get_email_service, hash_token
+from logmorph.core.security import create_access_token, hash_password
+from logmorph.db.models import User
+
+
+@pytest.mark.asyncio
+async def test_signup_success_and_email_dispatched(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify signup creates user in unverified state and dispatches verification email."""
+    email_service = get_email_service()
+    email_service.sent_emails.clear()
+
+    payload = {
+        "email": "alice@logmorph.io",
+        "password": "SecurePassword#2026",
+        "full_name": "Alice SOC Analyst",
+    }
+    response = await async_client.post("/auth/signup", json=payload)
+    assert response.status_code == 201
+
+    data = response.json()
+    assert data["email"] == "alice@logmorph.io"
+    assert data["full_name"] == "Alice SOC Analyst"
+    assert data["is_verified"] is False
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Verify user exists in database
+    stmt = select(User).where(User.email == "alice@logmorph.io")
+    user = (await async_db.exec(stmt)).first()
+    assert user is not None
+    assert user.is_verified is False
+    assert user.verification_token_hash is not None
+
+    # Verify verification email was recorded
+    assert len(email_service.sent_emails) == 1
+    sent = email_service.sent_emails[0]
+    assert sent["to"] == "alice@logmorph.io"
+    assert "Verify your LogMorph account" in sent["subject"]
+
+
+@pytest.mark.asyncio
+async def test_signup_duplicate_email_conflict_409(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify registering with an existing email returns 409 Conflict."""
+    existing_user = User(
+        email="duplicate@logmorph.io",
+        full_name="Existing User",
+        hashed_password=hash_password("Pass#1234"),
+    )
+    async_db.add(existing_user)
+    await async_db.commit()
+
+    payload = {
+        "email": "duplicate@logmorph.io",
+        "password": "NewPassword#2026",
+        "full_name": "Second User",
+    }
+    response = await async_client.post("/auth/signup", json=payload)
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "CONFLICT"
+
+
+@pytest.mark.asyncio
+async def test_login_success(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify logging in with valid credentials returns JWT token."""
+    plain_pw = "ValidP@ssword2026"
+    user = User(
+        email="bob@logmorph.io",
+        full_name="Bob Engineer",
+        hashed_password=hash_password(plain_pw),
+        is_verified=True,
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    payload = {"email": "bob@logmorph.io", "password": plain_pw}
+    response = await async_client.post("/auth/login", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["email"] == "bob@logmorph.io"
+
+
+@pytest.mark.asyncio
+async def test_login_with_uuid_identifier_success(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify logging in with User UUID identifier string returns JWT token."""
+    plain_pw = "ValidP@ssword2026"
+    user = User(
+        email="uuid_user@logmorph.io",
+        full_name="UUID User",
+        hashed_password=hash_password(plain_pw),
+        is_verified=True,
+    )
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
+
+    # Login using identifier field set to stringified UUID
+    payload = {"identifier": str(user.id), "password": plain_pw}
+    response = await async_client.post("/auth/login", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["email"] == "uuid_user@logmorph.io"
+    assert str(data["id"]) == str(user.id)
+
+
+@pytest.mark.asyncio
+async def test_login_with_email_as_identifier_success(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify logging in with identifier field containing email returns JWT token."""
+    plain_pw = "ValidP@ssword2026"
+    user = User(
+        email="ident_email@logmorph.io",
+        full_name="Ident User",
+        hashed_password=hash_password(plain_pw),
+        is_verified=True,
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    payload = {"identifier": "ident_email@logmorph.io", "password": plain_pw}
+    response = await async_client.post("/auth/login", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["email"] == "ident_email@logmorph.io"
+
+
+@pytest.mark.asyncio
+async def test_login_unverified_user_blocked_403(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify that unverified users are blocked from logging in with 403 Forbidden."""
+    plain_pw = "ValidP@ssword2026"
+    user = User(
+        email="unverified_bob@logmorph.io",
+        full_name="Unverified Bob",
+        hashed_password=hash_password(plain_pw),
+        is_verified=False,
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    payload = {"email": "unverified_bob@logmorph.io", "password": plain_pw}
+    response = await async_client.post("/auth/login", json=payload)
+    assert response.status_code == 403
+    assert "not verified" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_login_wrong_password_fails_401(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify logging in with incorrect password returns 401 Unauthorized."""
+    user = User(
+        email="charlie@logmorph.io",
+        full_name="Charlie Analyst",
+        hashed_password=hash_password("RealPassword#123"),
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    payload = {"email": "charlie@logmorph.io", "password": "WrongPassword#999"}
+    response = await async_client.post("/auth/login", json=payload)
+    assert response.status_code == 401
+    assert response.json()["error_code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_get_me_profile(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify GET /auth/me returns the authenticated tenant's profile."""
+    user = User(
+        email="me_test@logmorph.io",
+        full_name="Me Tester",
+        hashed_password=hash_password("Pass#123"),
+        is_verified=True,
+    )
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
+
+    token = create_access_token(subject=user.id, email=user.email)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await async_client.get("/auth/me", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == "me_test@logmorph.io"
+    assert data["full_name"] == "Me Tester"
+    assert data["is_verified"] is True
+
+
+@pytest.mark.asyncio
+async def test_verify_email_flow(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify submitting a valid verification token marks the account as verified."""
+    raw_token = "valid_crypto_verification_token_123456"
+    token_hash = hash_token(raw_token)
+    expires_at = datetime.now(UTC) + timedelta(hours=24)
+
+    user = User(
+        email="verify_test@logmorph.io",
+        full_name="Verify Tester",
+        hashed_password=hash_password("Pass#123"),
+        is_verified=False,
+        verification_token_hash=token_hash,
+        verification_token_expires_at=expires_at,
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    # Submit verification
+    response = await async_client.post(
+        "/auth/verify-email",
+        json={"token": raw_token},
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == "Email verified successfully"
+
+    # Verify user record updated in database
+    await async_db.refresh(user)
+    assert user.is_verified is True
+    assert user.verification_token_hash is None
+    assert user.email_verified_at is not None
+
+    # Re-submitting the same token must fail with 400
+    repeat_response = await async_client.post(
+        "/auth/verify-email",
+        json={"token": raw_token},
+    )
+    assert repeat_response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_resend_verification_email(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify resending verification email generates a new token and sends email."""
+    email_service = get_email_service()
+    email_service.sent_emails.clear()
+
+    user = User(
+        email="unverified_resend@logmorph.io",
+        full_name="Resend Tester",
+        hashed_password=hash_password("Pass#123"),
+        is_verified=False,
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    response = await async_client.post(
+        "/auth/resend-verification",
+        json={"email": "unverified_resend@logmorph.io"},
+    )
+    assert response.status_code == 200
+    assert len(email_service.sent_emails) == 1
+    assert email_service.sent_emails[0]["to"] == "unverified_resend@logmorph.io"
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_anti_enumeration(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify forgot-password returns identical 200 response for existing and non-existing emails."""
+    email_service = get_email_service()
+    email_service.sent_emails.clear()
+
+    user = User(
+        email="existing_user@logmorph.io",
+        full_name="Existing User",
+        hashed_password=hash_password("Pass#123"),
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    # 1. Existing user -> returns 200 and sends email
+    resp1 = await async_client.post(
+        "/auth/forgot-password",
+        json={"email": "existing_user@logmorph.io"},
+    )
+    assert resp1.status_code == 200
+    assert "If an account with that email exists" in resp1.json()["message"]
+    assert len(email_service.sent_emails) == 1
+
+    # 2. Non-existent user -> returns identical 200 but sends no email
+    resp2 = await async_client.post(
+        "/auth/forgot-password",
+        json={"email": "nonexistent@logmorph.io"},
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["message"] == resp1.json()["message"]
+    assert len(email_service.sent_emails) == 1  # No new email sent
+
+
+@pytest.mark.asyncio
+async def test_reset_password_success(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify resetting password with recovery token updates password and increments token_version."""
+    raw_token = "valid_password_reset_token_12345678"
+    token_hash = hash_token(raw_token)
+    expires_at = datetime.now(UTC) + timedelta(minutes=15)
+
+    user = User(
+        email="reset_me@logmorph.io",
+        full_name="Reset User",
+        hashed_password=hash_password("OldPassword#2025"),
+        reset_token_hash=token_hash,
+        reset_token_expires_at=expires_at,
+        token_version=1,
+        is_verified=True,
+    )
+    async_db.add(user)
+    await async_db.commit()
+
+    # Reset password
+    new_pw = "BrandNewPassword#2026"
+    response = await async_client.post(
+        "/auth/reset-password",
+        json={"token": raw_token, "new_password": new_pw},
+    )
+    assert response.status_code == 200
+    assert "Password has been reset successfully" in response.json()["message"]
+
+    # Verify user record
+    await async_db.refresh(user)
+    assert user.reset_token_hash is None
+    assert user.token_version == 2
+
+    # Verify user can log in with new password
+    login_resp = await async_client.post(
+        "/auth/login",
+        json={"email": "reset_me@logmorph.io", "password": new_pw},
+    )
+    assert login_resp.status_code == 200
+
+    # Old password must fail
+    old_login_resp = await async_client.post(
+        "/auth/login",
+        json={"email": "reset_me@logmorph.io", "password": "OldPassword#2025"},
+    )
+    assert old_login_resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_change_password_flow(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify in-app password change for logged-in user."""
+    old_pw = "CurrentPassword#123"
+    user = User(
+        email="changer@logmorph.io",
+        full_name="Changer User",
+        hashed_password=hash_password(old_pw),
+        is_verified=True,
+    )
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
+
+    token = create_access_token(subject=user.id, email=user.email)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Wrong current password fails 401
+    fail_resp = await async_client.post(
+        "/auth/change-password",
+        json={"current_password": "WrongPassword", "new_password": "NewPassword#12345"},
+        headers=headers,
+    )
+    assert fail_resp.status_code == 401
+
+    # Correct password succeeds 200
+    success_resp = await async_client.post(
+        "/auth/change-password",
+        json={"current_password": old_pw, "new_password": "NewPassword#12345"},
+        headers=headers,
+    )
+    assert success_resp.status_code == 200
+    assert success_resp.json()["message"] == "Password updated successfully"
+
+    # FIX-P8: Replay old token — must be revoked with 401 Unauthorized
+    revoked_me_resp = await async_client.get("/auth/me", headers=headers)
+    assert revoked_me_resp.status_code == 401
+    assert "Session revoked" in revoked_me_resp.json()["detail"]
+
+    # FIX-P8: Replay old token to refresh endpoint — must also be rejected
+    revoked_refresh_resp = await async_client.post("/auth/refresh", headers=headers)
+    assert revoked_refresh_resp.status_code == 401
+    assert "Session revoked" in revoked_refresh_resp.json()["detail"]
+
+    # Login with new password succeeds and issues new valid token (version 2)
+    new_login_resp = await async_client.post(
+        "/auth/login",
+        json={"email": user.email, "password": "NewPassword#12345"},
+    )
+    assert new_login_resp.status_code == 200
+    new_token = new_login_resp.json()["access_token"]
+    new_headers = {"Authorization": f"Bearer {new_token}"}
+
+    # New token works on /auth/me
+    new_me_resp = await async_client.get("/auth/me", headers=new_headers)
+    assert new_me_resp.status_code == 200
+    assert new_me_resp.json()["email"] == user.email
+
+
+# ==============================================================================
+# 5. Rate Limiting Tests (FIX-P1)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_login_rate_limiting_enforced_429(
+    async_client: AsyncClient,
+):
+    """Verify rapid failed login attempts trigger HTTP 429 after 10 attempts (FIX-P1)."""
+    client_ip = "198.51.100.77"
+    headers = {"X-Forwarded-For": client_ip}
+
+    statuses = []
+    for i in range(13):
+        resp = await async_client.post(
+            "/auth/login",
+            json={"email": "attacker@bruteforce.com", "password": f"WrongPass{i}"},
+            headers=headers,
+        )
+        statuses.append(resp.status_code)
+        if resp.status_code == 429:
+            data = resp.json()
+            assert data["status_code"] == 429
+            assert data["error_code"] == "RATE_LIMIT_EXCEEDED"
+            assert "Retry-After" in resp.headers
+
+    assert 429 in statuses, f"Expected 429 Too Many Requests in 13 attempts, got {statuses}"
+
+
+@pytest.mark.asyncio
+async def test_login_rate_limiting_per_ip_isolation(
+    async_client: AsyncClient,
+):
+    """Verify rate limit on one IP does not block a distinct client IP."""
+    headers_b = {"X-Forwarded-For": "198.51.100.78"}
+    resp = await async_client.post(
+        "/auth/login",
+        json={"email": "other@domain.com", "password": "WrongPassword"},
+        headers=headers_b,
+    )
+    # Distinct IP must get normal 401 response, not 429
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_rate_limiting_enforced_429(
+    async_client: AsyncClient,
+):
+    """Verify rapid forgot-password requests trigger HTTP 429 after 5 attempts."""
+    client_ip = "198.51.100.88"
+    headers = {"X-Forwarded-For": client_ip}
+
+    statuses = []
+    for _ in range(7):
+        resp = await async_client.post(
+            "/auth/forgot-password",
+            json={"email": "victim@example.com"},
+            headers=headers,
+        )
+        statuses.append(resp.status_code)
+        if resp.status_code == 429:
+            data = resp.json()
+            assert data["status_code"] == 429
+            assert data["error_code"] == "RATE_LIMIT_EXCEEDED"
+
+    assert 429 in statuses, f"Expected 429 in 7 attempts, got {statuses}"
