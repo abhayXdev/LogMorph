@@ -21,22 +21,21 @@ export function CloudflareBarDropChart({
 }: CloudflareBarDropChartProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  // Generate deterministic points if API has no events yet
+  // Generate zero-count baseline slots if API has no events yet for the selected period
   const defaultCount = period === "24h" ? 24 : period === "7d" ? 14 : 30;
   const points: BarPoint[] = data.length
     ? data
     : Array.from({ length: defaultCount }, (_, i) => {
-        const base = 25 + Math.sin(i / 2.5) * 18 + ((i * 7) % 23);
         const offsetMs =
           (defaultCount - 1 - i) *
           (period === "24h" ? 3600000 : period === "7d" ? 43200000 : 86400000);
         return {
           time: new Date(Date.now() - offsetMs).toISOString(),
-          count: Math.max(8, Math.round(base)),
+          count: 0,
         };
       });
 
-  const maxCount = Math.max(...points.map((p) => p.count), 1);
+  const maxCount = Math.max(...points.map((p) => p.count), 0);
   const totalCount = points.reduce((acc, p) => acc + p.count, 0);
 
   const formatTooltipTime = (ts: string) => {
@@ -100,13 +99,15 @@ export function CloudflareBarDropChart({
                 {/* Vertical Bar Drop */}
                 <div
                   className={`relative w-full rounded-t-[3px] transition-all duration-200 ease-out ${
-                    isHovered
-                      ? "bg-[#812720] shadow-sm shadow-[#590907]/20"
-                      : "bg-[#590907] group-hover:bg-[#701513]"
+                    point.count > 0
+                      ? isHovered
+                        ? "bg-[#812720] shadow-sm shadow-[#590907]/20"
+                        : "bg-[#590907] group-hover:bg-[#701513]"
+                      : "bg-[#c6c8bb]/40"
                   }`}
                   style={{
-                    height: `${Math.max(point.count > 0 ? heightPercent : 0, 3)}%`,
-                    minHeight: "3px",
+                    height: point.count > 0 ? `${Math.max(heightPercent, 3)}%` : "2px",
+                    minHeight: "2px",
                   }}
                 />
 
