@@ -4,4 +4,4 @@ from logmorph.client import LogMorph
 from logmorph.handler import LogMorphHandler
 
 __all__ = ["LogMorph", "LogMorphHandler", "__version__"]
-__version__ = "0.1.1"
+__version__ = "0.1.2"

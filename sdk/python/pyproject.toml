@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "logmorph"
-version = "0.1.1"
-description = "Lightweight zero-dependency telemetry and log shipping client for LogMorph."
+version = "0.1.2"
+description = "Ultra-lightweight, zero-dependency telemetry and log shipping client for LogMorph."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
@@ -16,15 +16,22 @@ keywords = [
     "logging",
     "telemetry",
     "observability",
-    "logmorph",
+    "log-shipping",
+    "metrics",
     "cloud",
     "serverless",
-    "monitoring"
+    "microservices",
+    "monitoring",
+    "zero-dependency",
+    "logmorph",
+    "async-logging"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
@@ -33,11 +40,15 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Logging",
     "Topic :: System :: Monitoring",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
 dependencies = []
 
 [project.urls]
 Homepage = "https://logmorph.onrender.com"
+Documentation = "https://github.com/abhaypaul058/MINIproject#readme"
 Repository = "https://github.com/abhaypaul058/MINIproject"
 Issues = "https://github.com/abhaypaul058/MINIproject/issues"
+Changelog = "https://github.com/abhaypaul058/MINIproject/releases"
