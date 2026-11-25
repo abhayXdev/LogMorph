@@ -8,6 +8,7 @@ from __future__ import annotations
 import atexit
 import contextlib
 import json
+import os
 import queue
 import threading
 import time
@@ -16,7 +17,10 @@ import urllib.request
 from collections.abc import Mapping
 from typing import Any
 
-_DEFAULT_ENDPOINT = "https://logmorph.onrender.com/api/v1/ingest"
+_DEFAULT_ENDPOINT = os.getenv(
+    "LOGMORPH_ENDPOINT",
+    os.getenv("LOGMORPH_API_URL", "https://logmorph.onrender.com").rstrip("/") + "/api/v1/ingest",
+)
 _DEFAULT_SOURCE = "default"
 _DEFAULT_BATCH_SIZE = 25
 _DEFAULT_FLUSH_INTERVAL = 1.0
@@ -34,7 +38,7 @@ class LogMorph:
     def __init__(
         self,
         api_key: str,
-        endpoint: str = _DEFAULT_ENDPOINT,
+        endpoint: str | None = None,
         source: str = _DEFAULT_SOURCE,
         batch_size: int = _DEFAULT_BATCH_SIZE,
         flush_interval: float = _DEFAULT_FLUSH_INTERVAL,
@@ -46,7 +50,7 @@ class LogMorph:
 
         Args:
             api_key: Project API key (e.g. 'lm_live_...').
-            endpoint: Ingest endpoint URL.
+            endpoint: Ingest endpoint URL (defaults to env var or cloud endpoint).
             source: Source identifier for this client instance.
             batch_size: Maximum logs bundled in a single HTTP request.
             flush_interval: Maximum seconds to wait before flushing pending logs.
@@ -56,6 +60,12 @@ class LogMorph:
         """
         if not api_key or not isinstance(api_key, str) or not api_key.strip():
             raise ValueError("api_key must be a non-empty string")
+
+        if endpoint is None:
+            endpoint = os.getenv(
+                "LOGMORPH_ENDPOINT",
+                os.getenv("LOGMORPH_API_URL", "https://logmorph.onrender.com").rstrip("/") + "/api/v1/ingest",
+            )
 
         self.api_key: str = api_key.strip()
         self.endpoint: str = endpoint.rstrip("/")

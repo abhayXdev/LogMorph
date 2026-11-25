@@ -10,13 +10,19 @@ from typing import Any
 from uuid import UUID
 
 from logmorph.domain.uls import LogFormatEnum, ParsingTierEnum, SeverityEnum
-from logmorph.engine.detector import detect_format
 from logmorph.engine.parsers.base import ParsedResult
 from logmorph.engine.parsers.drain_miner import parse_tier2_async, should_route_to_llm
 from logmorph.engine.parsers.nim_client import parse_tier3_async
 from logmorph.engine.parsers.tier1 import parse_tier1
 
 logger = logging.getLogger(__name__)
+
+
+def _detect_format_lazy(raw_log: str):
+    """Lazy import of format detector to prevent circular import cascades."""
+    from logmorph.engine.detector import detect_format
+
+    return detect_format(raw_log)
 
 
 @dataclasses.dataclass
@@ -156,7 +162,7 @@ async def parse_cascade_async(
     # Gate 1: Format Detection (if not supplied)
     if detected_format is None:
         t0_det = time.perf_counter()
-        detection_res = detect_format(raw_log)
+        detection_res = _detect_format_lazy(raw_log)
         detected_format = detection_res.detected_format
         tier_latencies["format_detection_ms"] = (time.perf_counter() - t0_det) * 1000
 
@@ -327,7 +333,7 @@ async def parse_cascade_batch_async(
         # Format detection if needed
         if fmt is None:
             t0_det = time.perf_counter()
-            detection_res = detect_format(raw_log)
+            detection_res = _detect_format_lazy(raw_log)
             fmt = detection_res.detected_format
             tier_latencies["format_detection_ms"] = (time.perf_counter() - t0_det) * 1000
 

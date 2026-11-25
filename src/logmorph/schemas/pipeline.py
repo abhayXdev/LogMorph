@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
-from logmorph.engine.parsers.base import ParsedResult
+if TYPE_CHECKING:
+    from logmorph.engine.parsers.base import ParsedResult
+else:
+    ParsedResult = Any
 from logmorph.schemas.deduplication import DeduplicationConfig, DeduplicationResult
 from logmorph.schemas.normalization import TimestampNormalizationResult
 from logmorph.schemas.sanitization import FieldCleaningConfig, SanitizationReport
