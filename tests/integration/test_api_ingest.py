@@ -433,3 +433,93 @@ async def test_corrupted_gzip_payload_returns_400(
     data = response.json()
     assert data["status_code"] == 400
     assert data["error_code"] == "GZIP_DECODE_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_single_ingest_persists_record_and_increments_source(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify single log ingestion persists parsed LogRecord and updates LogSource count."""
+    from sqlmodel import select
+
+    from logmorph.db.models import LogRecord, LogSource
+
+    user, raw_key, _ = await _create_test_tenant_and_key(
+        async_db, email="persist_single@corp.com"
+    )
+    source = LogSource(
+        tenant_id=user.id,
+        name="PyPI-SDK-Client",
+        source_type="sdk",
+        events_count=0,
+    )
+    async_db.add(source)
+    await async_db.commit()
+
+    response = await async_client.post(
+        "/api/v1/ingest",
+        headers={"X-API-Key": raw_key},
+        json={
+            "raw_log": '{"level":"error","service":"checkout","msg":"Payment gateway timeout"}',
+            "source": "PyPI-SDK-Client",
+        },
+    )
+    assert response.status_code == 202
+    event_id = response.json()["event_id"]
+
+    rec_stmt = select(LogRecord).where(LogRecord.event_id == event_id)
+    record = (await async_db.exec(rec_stmt)).first()
+    assert record is not None
+    assert record.tenant_id == user.id
+    assert record.detected_format == "JSON"
+
+    await async_db.refresh(source)
+    assert source.events_count == 1
+    assert source.last_seen_at is not None
+
+
+@pytest.mark.asyncio
+async def test_batch_ingest_persists_records_and_increments_source(
+    async_client: AsyncClient,
+    async_db: AsyncSession,
+):
+    """Verify batch ingestion persists all LogRecords and increments LogSource count."""
+    from sqlmodel import select
+
+    from logmorph.db.models import LogRecord, LogSource
+
+    user, raw_key, _ = await _create_test_tenant_and_key(
+        async_db, email="persist_batch@corp.com"
+    )
+    source = LogSource(
+        tenant_id=user.id,
+        name="Batch-Node",
+        source_type="sdk",
+        events_count=0,
+    )
+    async_db.add(source)
+    await async_db.commit()
+
+    response = await async_client.post(
+        "/api/v1/ingest/batch",
+        headers={"X-API-Key": raw_key},
+        json={
+            "logs": [
+                "2026-11-25 10:00:00 INFO Server started",
+                "2026-11-25 10:00:01 WARNING High memory usage",
+                "2026-11-25 10:00:02 ERROR Connection reset",
+            ],
+            "source": "Batch-Node",
+        },
+    )
+    assert response.status_code == 202
+    event_ids = response.json()["event_ids"]
+    assert len(event_ids) == 3
+
+    rec_stmt = select(LogRecord).where(LogRecord.tenant_id == user.id)
+    records = (await async_db.exec(rec_stmt)).all()
+    assert len(records) == 3
+
+    await async_db.refresh(source)
+    assert source.events_count == 3
