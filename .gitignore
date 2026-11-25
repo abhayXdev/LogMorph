@@ -71,3 +71,7 @@ frontend/.vite/
 
 # --- Project Documents (not source code) ---
 *.pdf
+
+# --- Local Sandbox & Demonstrations (not pushed) ---
+sandbox/
+
