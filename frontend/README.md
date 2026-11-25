@@ -133,3 +133,25 @@ git commit -m "feat(frontend): implement production telemetry dashboard and Clou
 # 4. Push to remote
 git push origin feat/frontend-telemetry-platform
 ```
+
+---
+
+## ⚖️ Legal Notice & Limitation of Liability
+
+> [!IMPORTANT]
+> **READ CAREFULLY PRIOR TO DEPLOYING OR HOSTING THIS FRONTEND APPLICATION.**
+
+### 1. Open Source License & "AS IS" Disclaimer
+This frontend application is released under the **MIT License**. THE SOFTWARE IS PROVIDED **"AS IS"**, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT.
+
+### 2. Limitation of Liability
+IN NO EVENT SHALL THE AUTHORS, COPYRIGHT HOLDERS, OR HOSTING OPERATORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING BUT NOT LIMITED TO LOSS OF DATA, UNAUTHORIZED ACCOUNT ACCESS, REVENUE LOSS, OR SERVICE OUTAGES) ARISING OUT OF THE USE OF OR INABILITY TO USE THIS APPLICATION.
+
+### 3. Data Privacy & Security Compliance
+Administrators and users deploying this web interface are solely responsible for compliance with international and regional privacy regulations (**GDPR**, **CCPA**, **HIPAA**, and **PCI-DSS**). Ensure that SSL/TLS certificates (HTTPS) are active and security headers are properly enforced prior to processing production logs or storing confidential API keys.
+
+---
+
+<div align="center">
+  <sub>Part of the <b>LogMorph</b> Telemetry Intelligence Ecosystem.</sub>
+</div>
