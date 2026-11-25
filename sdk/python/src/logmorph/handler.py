@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -57,15 +58,11 @@ class LogMorphHandler(logging.Handler):
 
     def flush(self) -> None:
         """Flush the underlying LogMorph client queue."""
-        try:
+        with contextlib.suppress(Exception):
             self.client.flush()
-        except Exception:
-            pass
 
     def close(self) -> None:
         """Close the handler and drain the underlying LogMorph client."""
-        try:
+        with contextlib.suppress(Exception):
             self.client.close()
-        except Exception:
-            pass
         super().close()

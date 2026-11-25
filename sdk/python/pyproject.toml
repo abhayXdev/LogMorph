@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "logmorph"
-version = "0.1.0"
+version = "0.1.1"
 description = "Lightweight zero-dependency telemetry and log shipping client for LogMorph."
 readme = "README.md"
 requires-python = ">=3.8"
