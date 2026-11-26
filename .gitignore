@@ -7,8 +7,8 @@
 
 # --- Secrets & Environment ---
 .env
-.env.local
-.env.production
+.env.*
+.pypirc
 certs/
 *.pem
 *.key
