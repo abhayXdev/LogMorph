@@ -18,7 +18,7 @@
   Featuring a 3-Tier Adaptive Parsing Cascade, sliding-window deduplication, STIX2/MISP threat enrichment, and a zero-dependency Python SDK.
 </p>
 
-[Live Cloud API](https://logmorph.onrender.com/health) • [Python SDK Guide](sdk/python/README.md) • [Frontend Web App](frontend/README.md) • [Report Bug](https://github.com/abhaypaul058/MINIproject/issues)
+[Live Cloud API](https://logmorph.onrender.com/health) • [Python SDK Guide](sdk/python/README.md) • [Frontend Web App](frontend/README.md) • [Report Bug](https://github.com/abhayXdev/LogMorph/issues)
 
 ---
 
@@ -149,8 +149,8 @@ app_logger.error("Database connection timeout")
 
 ### 1. Clone Repository & Setup Virtual Environment
 ```bash
-git clone https://github.com/abhaypaul058/MINIproject.git
-cd MINIproject
+git clone https://github.com/abhayXdev/LogMorph.git
+cd LogMorph
 
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate

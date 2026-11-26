@@ -214,12 +214,12 @@ Users and organizations utilizing this SDK are solely responsible for ensuring t
 ## 🔗 Useful Links
 
 * **Live Dashboard & API**: [https://logmorph.onrender.com](https://logmorph.onrender.com)
-* **GitHub Repository**: [https://github.com/abhaypaul058/MINIproject](https://github.com/abhaypaul058/MINIproject)
-* **Issue Tracker**: [https://github.com/abhaypaul058/MINIproject/issues](https://github.com/abhaypaul058/MINIproject/issues)
+* **GitHub Repository**: [https://github.com/abhayXdev/LogMorph](https://github.com/abhayXdev/LogMorph)
+* **Issue Tracker**: [https://github.com/abhayXdev/LogMorph/issues](https://github.com/abhayXdev/LogMorph/issues)
 * **PyPI Package**: [https://pypi.org/project/logmorph/](https://pypi.org/project/logmorph/)
 
 ---
 
 <div align="center">
-  <sub>Copyright © 2026 Abhay Paul. Licensed under the MIT License.</sub>
+  <sub>Copyright © 2026 abhayXdev. Licensed under the MIT License.</sub>
 </div>
